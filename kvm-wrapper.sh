@@ -204,7 +204,7 @@ kvm_init_env ()
 	if [ -z "${VM_NAME}" ]; then
 		return 0
 	fi
-	KVM_CLUSTER_NODE=local
+	KVM_CLUSTER_NODE=${KVM_CLUSTER_MODE:-'local'}
 	VM_DESCRIPTOR="$VM_DIR/$VM_NAME-vm"
 	MONITOR_FILE="$MONITOR_DIR/$VM_NAME.unix"
 	SERIAL_FILE="$SERIAL_DIR/$VM_NAME.unix"
