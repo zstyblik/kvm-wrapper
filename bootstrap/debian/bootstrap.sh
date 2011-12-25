@@ -268,6 +268,10 @@ EOF
 			"$MNTDIR/etc/apt/sources.list"
 		sed -i -e "s/FLAVOR/$BOOTSTRAP_FLAVOR/" "$MNTDIR/etc/apt/sources.list"
 
+		# Allow login from serial console
+		printf "T0:23:respawn:/sbin/getty -L ttyS0 115200\n" \
+			>> "$MNTDIR/etc/inittab"
+
 		if [ "$BOOTSTRAP_PARTITION_TYPE" = "msdos" ]; then
 			desc_remove_setting "KVM_KERNEL"
 			desc_remove_setting "KVM_INITRD"
