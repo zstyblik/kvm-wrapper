@@ -1228,6 +1228,11 @@ kvm_remove_vm()
 	fi
 } # kvm_remove ()
 
+kvm_edit_conf()
+{
+	eval "$EDITOR" "$CONFFILE"
+}
+
 print_help ()
 {
 	ARG1=${1:-''}
@@ -1325,6 +1330,10 @@ case "$ARG1" in
 			shift
 			kvm_build_vm $@
 		else print_help; fi
+		exit 0
+		;;
+	'conf')
+		kvm_edit_conf
 		exit 0
 		;;
 	'help')
