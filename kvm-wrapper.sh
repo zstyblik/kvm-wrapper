@@ -828,36 +828,39 @@ function kvm_remove ()
 
 function print_help ()
 {
-	case "$1" in
+	ARG1=${1:-''}
+	case "$ARG1" in
 		"create")
-	echo -e "Usage $SCRIPT_NAME create [flags] virtual-machine"
-	echo
-	echo -e "Flags are :"
-	echo -e "   -m size, --mem size:    Specify how much RAM you want the system to have"
-	echo -e "   -s size, --size size:   Specify how big the disk should be in MB"
-	echo -e "   -e, --edit:             If you want to edit the descriptor after autoconfiguration"
-	echo -e "   -c num, --cpu num:      Number of cpu the system should have"
-	echo -e "   --swap size:            Size of the swap in MB"
-	echo -e "   --favor name, -f name:  Flavor of the debian release (lenny, squeeze..)"
-	echo
-	echo -e " More to come ?"
-	;;
+		printf "Usage %s create [flags] virtual-machine\n\n" $SCRIPT_NAME
+		printf "Flags are :\n"
+		printf "   -m size, --mem size:    Specify how much RAM you want the \
+system to have\n"
+		printf "   -s size, --size size:   Specify how big the disk should be \
+in MB\n"
+		printf "   -e, --edit:             If you want to edit the descriptor \
+after autoconfiguration\n"
+		printf "   -c num, --cpu num:      Number of cpu the system should have\n"
+		printf "   --swap size:            Size of the swap in MB\n"
+		printf "   --favor name, -f name:  Flavor of the debian release \
+(lenny, squeeze..)\n"
+		printf "\n More to come ?\n"
+		;;
 		*)
-	echo -e "Usage: $SCRIPT_NAME {start|screen|stop} virtual-machine"
-	echo -e "       $SCRIPT_NAME {attach|monitor|serial} virtual-machine"
-	echo -e "       $SCRIPT_NAME {save-state|load-state} virtual-machine"
-	echo -e "       $SCRIPT_NAME migrate virtual-machine dest-node"
-	echo -e ""
-	echo -e "       $SCRIPT_NAME status [virtual-machine]"
-	echo -e "       $SCRIPT_NAME list [node]"
-	echo
-	echo -e "       $SCRIPT_NAME balloon virtual-machine target_RAM"
-	echo -e "       $SCRIPT_NAME create [flags] virtual-machine #for flag list, try $SCRIPT_NAME help create"
-	echo -e "       $SCRIPT_NAME create-desc virtual-machine [diskimage [size]]"
-	echo -e "       $SCRIPT_NAME bootstrap virtual-machine"
-	echo -e "       $SCRIPT_NAME edit virtual-machine"
-	echo -e "       $SCRIPT_NAME remove virtual-machine"
-	;;
+		printf "Usage: %s {start|screen|stop} virtual-machine\n" $SCRIPT_NAME
+		printf "       %s {attach|monitor|serial} virtual-machine\n" $SCRIPT_NAME
+		printf "       %s {save-state|load-state} virtual-machine\n" $SCRIPT_NAME
+		printf "       %s migrate virtual-machine dest-node\n\n" $SCRIPT_NAME
+		printf "       %s status [virtual-machine]\n" $SCRIPT_NAME
+		printf "       %s list [node]\n\n" $SCRIPT_NAME
+		printf "       %s balloon virtual-machine target_RAM\n" $SCRIPT_NAME
+		printf "       %s create [flags] virtual-machine #for flag list, try \
+%s help create\n" $SCRIPT_NAME $SCRIPT_NAME
+		printf "       %s create-desc virtual-machine [diskimage [size]]\n" \
+			$SCRIPT_NAME
+		printf "       %s bootstrap virtual-machine\n" $SCRIPT_NAME
+		printf "       %s edit virtual-machine\n" $SCRIPT_NAME
+		printf "       %s remove virtual-machine\n" $SCRIPT_NAME
+		;;
 	esac
 	exit 2
 }
