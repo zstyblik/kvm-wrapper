@@ -1,9 +1,11 @@
-#!/bin/bash
+#!/bin/sh
 #
 # KVM Wrapper Script
 # Copyright (C) 2011 Benjamin Cohen <bencoh@codewreck.org>
 #                    Dominique Martinet <asmadeus@codewreck.org>
 # Published under the WTFPLv2 (see LICENSE)
+set -e
+set -u
 
 SCRIPT_PATH="$0"
 SCRIPT_NAME="`basename $SCRIPT_PATH`"
