@@ -873,33 +873,34 @@ test_file "$CLUSTER_CONF" && source "$CLUSTER_CONF"
 # Check VM descriptor directory
 test_dir "$VM_DIR" || fail_exit "Couldn't open VM descriptor directory :\n$VM_DIR"
 
-
-case "$1" in
+ARG1=${1:-''}
+ARG2=${2:-''}
+case "$ARG1" in
 	list)
-		kvm_list "$2"
+		kvm_list "$ARG2"
 		exit 0
 		;;
 	status)
-		if [[ -n "$2" ]]; then 
-			kvm_status "$2"
+		if [[ -n "$ARG2" ]]; then 
+			kvm_status "$ARG2"
 		else kvm_status "all"; fi
 		exit 0
 		;;
 	rundisk)
 		if [[ $# -eq 2 ]]; then
-			kvm_run_disk "$2"
+			kvm_run_disk "$ARG2"
 		else print_help; fi
 		exit 0
 		;;
 	edit)
 		if [[ $# -eq 2 ]]; then
-			kvm_edit_descriptor "$2"
+			kvm_edit_descriptor "$ARG2"
 		else print_help; fi
 		exit 0
 		;;
 	create-desc*)
 		if [[ $# -ge 2 ]]; then
-			kvm_create_descriptor "$2" "$3" "$4"
+			kvm_create_descriptor "$ARG2" "$3" "$4"
 		else print_help; fi
 		exit 0
 		;;
@@ -917,26 +918,26 @@ case "$1" in
 		;;
 esac
 
-kvm_init_env "$2"
+kvm_init_env "$ARG2"
 
 test_nodename "$KVM_CLUSTER_NODE" && { run_remote $KVM_CLUSTER_NODE $ROOTDIR/kvm-wrapper.sh $@; exit $?; }
 
 # Argument parsing
-case "$1" in
+case "$ARG1" in
 	remove)
 		if [[ $# -eq 2 ]]; then
-			kvm_remove "$2"
+			kvm_remove "$ARG2"
 		else print_help; fi
 		;;
 	migrate)
 		if [[ $# -eq 3 ]]; then
 			! test_file "$PID_FILE" && fail_exit "Error : $VM_NAME doesn't seem to be running."
 			! test_socket_rw "$MONITOR_FILE" && fail_exit "Error : could not open monitor socket $MONITOR_FILE."
-			[[ "$KVM_CLUSTER_NODE" == "$3" ]] && fail_exit "Error: $2 already runs on $3!"
+			[[ "$KVM_CLUSTER_NODE" == "$3" ]] && fail_exit "Error: $ARG2 already runs on $3!"
 			[[ -z "`get_cluster_host $3`" ]] && fail_exit "Error: Unknown host $3!"
 			desc_update_setting "KVM_CLUSTER_NODE" "$3"
 			PORT=$((RANDOM%1000+4000))
-			"$SCRIPT_PATH" receive-migrate-screen "$2" $PORT
+			"$SCRIPT_PATH" receive-migrate-screen "$ARG2" $PORT
 			sleep 1
 			monitor_send_cmd "migrate_set_speed 1024m"
 #			monitor_send_cmd "migrate \"exec: ssh `get_cluster_host $3` socat - unix:$RUN_DIR/migrate-$3.sock\""
@@ -964,7 +965,7 @@ case "$1" in
 			! test_socket_rw "$MONITOR_FILE" && fail_exit "Error : could not open monitor socket $MONITOR_FILE."
 			monitor_send_cmd "stop"
 			monitor_send_cmd "migrate_set_speed 4095m"
-			monitor_send_cmd "migrate \"exec:gzip -c > /var/cache/kvm-wrapper/$2-state.gz\""
+			monitor_send_cmd "migrate \"exec:gzip -c > /var/cache/kvm-wrapper/$ARG2-state.gz\""
 			monitor_send_cmd "quit"
 		else print_help; fi
 		;;
@@ -976,9 +977,9 @@ case "$1" in
 		;;
 	load-state-here)
 		if [[ $# -eq 2 ]]; then
-			KVM_ADDITIONNAL_PARAMS+=" -incoming \"exec: gzip -c -d /var/cache/kvm-wrapper/$2-state.gz\""
+			KVM_ADDITIONNAL_PARAMS+=" -incoming \"exec: gzip -c -d /var/cache/kvm-wrapper/$ARG2-state.gz\""
 			FORCE="yes"
-			kvm_start_vm "$2"
+			kvm_start_vm "$ARG2"
 		else print_help; fi
 		;;
 	balloon)
@@ -988,58 +989,58 @@ case "$1" in
 		;;
 	restart)
 		if [[ $# -eq 2 ]]; then
-			kvm_stop_vm "$2"
-			kvm_start_screen "$2"
+			kvm_stop_vm "$ARG2"
+			kvm_start_screen "$ARG2"
 		else print_help; fi
 		;;
 	start)
 		if [[ $# -eq 2 ]]; then
-			kvm_start_screen "$2"
+			kvm_start_screen "$ARG2"
 		else print_help; fi
 		;;
 	start-here)
 		if [[ $# -eq 2 ]]; then
-			kvm_start_vm "$2"
+			kvm_start_vm "$ARG2"
 		else print_help; fi
 		;;
 	screen)
 		if [[ $# -eq 2 ]]; then
-			kvm_start_screen_detached "$2"
+			kvm_start_screen_detached "$ARG2"
 		else print_help; fi
 		;;
 	attach)
 		if [[ $# -eq 2 ]]; then
-			kvm_attach_screen "$2"
+			kvm_attach_screen "$ARG2"
 		else print_help; fi
 		;;
 	monitor)
 		if [[ $# -eq 2 ]]; then
-			kvm_monitor "$2"
+			kvm_monitor "$ARG2"
 		else print_help; fi
 		;;
 	serial)
 		if [[ $# -eq 2 ]]; then
-			kvm_serial "$2"
+			kvm_serial "$ARG2"
 		else print_help; fi
 		;;
 	stop)
 		if [[ $# -eq 2 ]]; then
-			kvm_stop_vm "$2"
+			kvm_stop_vm "$ARG2"
 		else print_help; fi
 		;;
 	bootstrap)
 		if [[ $# -ge 2 ]]; then
-			kvm_bootstrap_vm "$2" "$3"
+			kvm_bootstrap_vm "$ARG2" "$3"
 		else print_help; fi
 		;;
 	create-disk)
-		lvm_create_disk "$2"
+		lvm_create_disk "$ARG2"
 		;;
 	mount-disk)
-		lvm_mount_disk "$2"
+		lvm_mount_disk "$ARG2"
 		;;
 	umount-disk)
-		lvm_umount_disk "$2"
+		lvm_umount_disk "$ARG2"
 		;;
 	*)
 		print_help
