@@ -637,9 +637,7 @@ $KVM_ADDITIONNAL_PARAMS"
 	fi
 
 	# Now run kvm
-	printf "%s" $EXEC_STRING
-	printf "\n"
-	printf "\n"
+	printf "%s\n\n" $EXEC_STRING
 	eval $EXEC_STRING
 
 	# Cleanup files
