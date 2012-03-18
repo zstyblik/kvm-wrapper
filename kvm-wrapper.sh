@@ -26,7 +26,7 @@ canonpath ()
 fail_exit ()
 {
 	printf "\n\n\n"
-	while [ $# -gt 1 ]; do
+	while [ $# -gt 0 ]; do
 		printf "%s\n" "${1}"
 		shift
 	done
