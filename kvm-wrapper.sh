@@ -239,7 +239,7 @@ set_cluster_host ()
 get_cluster_host ()
 {
 	ARG1=${1:-''}
-	eval printf '${KVM_CLUSTER_HOSTS_%s}' $(hash_string "$ARG1")
+	eval $(printf '${KVM_CLUSTER_HOSTS_%s:-''}' $(hash_string "$ARG1"))
 } # get_cluster_host ()
 
 run_remote ()
