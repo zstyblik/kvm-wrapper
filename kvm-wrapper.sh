@@ -18,7 +18,7 @@ canonpath ()
 	if [ -z "$ARG1" ]; then
 		printf ""
 	else
-		printf "%s" $(cd $(dirname "$ARG1"); pwd -P)/$(basename "$ARG1")
+		printf "%s/%s" $(cd $(dirname "$ARG1"); pwd -P) $(basename "$ARG1")
 	fi
 } # canonpath ()
 
