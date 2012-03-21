@@ -664,7 +664,7 @@ kvm_stop_vm ()
 	# Send monitor command through unix socket
 	printf \
 		"Trying to powerdown the VM %s first, might take some time (up to %s sec)" \
-		$KVM_WAIT_SHUTDOWN $VM_NAME
+		$VM_NAME $KVM_WAIT_SHUTDOWN
 
 	monitor_send_cmd "system_powerdown"
 	printf "Waiting ..."
