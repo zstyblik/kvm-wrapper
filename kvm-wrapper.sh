@@ -671,8 +671,9 @@ kvm_stop_vm ()
 
 	# Now wait for it
 	local ELAPSED=0
-	ELAPSED=$(wait_test_timelimit $KVM_WAIT_SHUTDOWN "! test_file $PID_FILE")
-	local PROPER=$?
+	local PROPER=0
+	ELAPSED=$(wait_test_timelimit $KVM_WAIT_SHUTDOWN\
+		"! test_file $PID_FILE") || PROPER=1
 	printf " elapsed time : %s sec\n" "$ELAPSED"
 
 	if [ $PROPER -eq 0 ]; then
