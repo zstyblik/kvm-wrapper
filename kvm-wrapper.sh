@@ -533,9 +533,14 @@ kvm_start_vm ()
 	require_exec "$KVM_BIN"
 	# Defaults
 	KVM_DISK1=${KVM_DISK1:-''}
+	KVM_DRIVE_OPT=${KVM_DRIVE_OPT:-''}
+	KVM_DRIVE1_OPT=${KVM_DRIVE1_OPT:-$KVM_DRIVE_OPT}
 	KVM_DISK2=${KVM_DISK2:-''}
+	KVM_DRIVE2_OPT=${KVM_DRIVE2_OPT:-$KVM_DRIVE_OPT}
 	KVM_DISK3=${KVM_DISK3:-''}
+	KVM_DRIVE3_OPT=${KVM_DRIVE3_OPT:-$KVM_DRIVE_OPT}
 	KVM_DISK4=${KVM_DISK4:-''}
+	KVM_DRIVE4_OPT=${KVM_DRIVE4_OPT:-$KVM_DRIVE_OPT}
 	KVM_CDROM=${KVM_CDROM:-''}
 	KVM_KERNEL=${KVM_KERNEL:-''}
 	KVM_INITRD=${KVM_INITRD:-''}
@@ -550,19 +555,19 @@ kvm_start_vm ()
 	local KVM_DRIVES=""
 	KVM_DRIVE_IF="${KVM_DRIVE_IF:-ide-hd}"
 	if [ -n "$KVM_DISK1" ]; then
-		KVM_DRIVES+="-drive if=none,id=disk1,file=\"$KVM_DISK1\"$KVM_DRIVE_OPT \
+		KVM_DRIVES+=" -drive if=none,id=disk1,file=\"$KVM_DISK1\"$KVM_DRIVE1_OPT \
 			-device ${KVM_DRIVE1_IF:-$KVM_DRIVE_IF},drive=disk1"
 	fi
 	if [ -n "$KVM_DISK2" ]; then
-		KVM_DRIVES+=" -drive if=none,id=disk2,file=\"$KVM_DISK2\"$KVM_DRIVE_OPT \
+		KVM_DRIVES+=" -drive if=none,id=disk2,file=\"$KVM_DISK2\"$KVM_DRIVE2_OPT \
 			-device ${KVM_DRIVE2_IF:-$KVM_DRIVE_IF},drive=disk2"
 	fi
 	if [ -n "$KVM_DISK3" ]; then
-		KVM_DRIVES+=" -drive if=none,id=disk3,file=\"$KVM_DISK3\"$KVM_DRIVE_OPT \
+		KVM_DRIVES+=" -drive if=none,id=disk3,file=\"$KVM_DISK3\"$KVM_DRIVE3_OPT \
 			-device ${KVM_DRIVE3_IF:-$KVM_DRIVE_IF},drive=disk3"
 	fi
 	if [ -n "$KVM_DISK4" ]; then
-		KVM_DRIVES+=" -drive if=none,id=disk4,file=\"$KVM_DISK4\"$KVM_DRIVE_OPT \
+		KVM_DRIVES+=" -drive if=none,id=disk4,file=\"$KVM_DISK4\"$KVM_DRIVE4_OPT \
 			-device ${KVM_DRIVE4_IF:-$KVM_DRIVE_IF},drive=disk4"
 	fi
 
