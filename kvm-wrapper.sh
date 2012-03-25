@@ -542,6 +542,7 @@ kvm_start_vm ()
 	KVM_APPEND=${KVM_APPEND:-''}
 	KVM_BRIDGE=${KVM_BRIDGE:-''}
 	KVM_NETWORK_MODEL=${KVM_NETWORK_MODEL:-'virtio-net-pci'}
+	KVM_NETWORK_TYPE=${KVM_NETWORK_TYPE:-''}
 	FORCE=${FORCE:-''}
 	SERIAL_USER=${SERIAL_USER:-''}
 	SERIAL_GROUP=${SERIAL_GROUP:-''}
@@ -594,10 +595,22 @@ kvm_start_vm ()
 	export KVM_BRIDGE
 	KVM_NET_SCRIPT="$ROOTDIR/net/kvm"
 
-	if [ "$KVM_NETWORK_MODEL" = "vhost_net" ]; then
+	# Backwards compatibility
+	if [ "${KVM_NETWORK_MODEL}" = "vhost_net" ]; then
+		KVM_NETWORK_TYPE=$KVM_NETWORK_MODEL
+	fi
+
+	if [ "$KVM_NETWORK_TYPE" = "vhost_net" ]; then
 		KVM_NET="-netdev type=tap,id=guest0,script=$KVM_NET_SCRIPT-ifup,\
 downscript=$KVM_NET_SCRIPT-ifdown,vhost=on -device virtio-net-pci,\
 netdev=guest0,mac=$KVM_MACADDRESS"
+	elif [ "$KVM_NETWORK_TYPE" = "vde" ]; then
+		if [ ! -S "${KVM_BRIDGE}" ]; then
+			fail_exit "KVM_BRIDGE '${KVM_BRIDGE}' doesn't seem to be a socket."
+		fi
+		KVM_NET="-netdev vde,id=hostnet0,sock=$KVM_BRIDGE \
+			-device $KVM_NETWORK_MODEL,netdev=hostnet0,id=net0,\
+mac=${KVM_MACADDRESS},multifunction=on"
 	else
 		KVM_NET="-netdev type=tap,id=guest0,script=$KVM_NET_SCRIPT-ifup,\
 downscript=$KVM_NET_SCRIPT-ifdown -device $KVM_NETWORK_MODEL,\
