@@ -805,7 +805,8 @@ kvm_list ()
 		if [ -z "$ARG1" ] || [ "$ARG1" = "$KVM_CLUSTER_NODE" ]; then
 			local VM_STATUS="Halted"
 			test_exist "$PID_FILE" && VM_STATUS="Running"
-			printf "\t%-20s\t$VM_STATUS\ton ${KVM_CLUSTER_NODE:-'local'}\n" "$VM_NAME"
+			printf "\t%-20s\t%s\ton %s\n" "$VM_NAME" "$VM_STATUS" \
+				"${KVM_CLUSTER_NODE:-'local'}"
 		fi
 	done
 } # kvm_list ()
