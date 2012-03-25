@@ -550,7 +550,7 @@ kvm_start_vm ()
 	local KVM_DRIVES=""
 	KVM_DRIVE_IF="${KVM_DRIVE_IF:-ide-hd}"
 	if [ -n "$KVM_DISK1" ]; then
-		KVM_DRIVES="-drive if=none,id=disk1,file=\"$KVM_DISK1\"$KVM_DRIVE_OPT \
+		KVM_DRIVES+="-drive if=none,id=disk1,file=\"$KVM_DISK1\"$KVM_DRIVE_OPT \
 			-device ${KVM_DRIVE1_IF:-$KVM_DRIVE_IF},drive=disk1"
 	fi
 	if [ -n "$KVM_DISK2" ]; then
