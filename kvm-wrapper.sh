@@ -605,7 +605,7 @@ kvm_start_vm ()
 downscript=$KVM_NET_SCRIPT-ifdown,vhost=on -device virtio-net-pci,\
 netdev=guest0,mac=$KVM_MACADDRESS"
 	elif [ "$KVM_NETWORK_TYPE" = "vde" ]; then
-		if [ ! -S "${KVM_BRIDGE}" ]; then
+		if [ ! -d "${KVM_BRIDGE}" ]; then
 			fail_exit "KVM_BRIDGE '${KVM_BRIDGE}' doesn't seem to be a socket."
 		fi
 		KVM_NET="-netdev vde,id=hostnet0,sock=$KVM_BRIDGE \
