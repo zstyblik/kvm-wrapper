@@ -554,21 +554,33 @@ kvm_start_vm ()
 	# Build KVM Drives (hdd, cdrom) parameters
 	local KVM_DRIVES=""
 	KVM_DRIVE_IF="${KVM_DRIVE_IF:-ide-hd}"
-	if [ -n "$KVM_DISK1" ]; then
+	KVM_DRIVE1_IF=${KVM_DRIVE1_IF:-$KVM_DRIVE_IF}
+	KVM_DRIVE2_IF=${KVM_DRIVE2_IF:-$KVM_DRIVE_IF}
+	KVM_DRIVE3_IF=${KVM_DRIVE3_IF:-$KVM_DRIVE_IF}
+	KVM_DRIVE4_IF=${KVM_DRIVE4_IF:-$KVM_DRIVE_IF}
+	if [ -n "$KVM_DISK1" ] && [ "$KVM_DRIVE1_IF" = 'virtio' ]; then
+		KVM_DRIVES+=" -drive if=virtio,id=disk1,file=\"$KVM_DISK1\"$KVM_DRIVE1_OPT"
+	elif [ -n "$KVM_DISK1" ]; then
 		KVM_DRIVES+=" -drive if=none,id=disk1,file=\"$KVM_DISK1\"$KVM_DRIVE1_OPT \
-			-device ${KVM_DRIVE1_IF:-$KVM_DRIVE_IF},drive=disk1"
+			-device ${KVM_DRIVE1_IF},drive=disk1"
 	fi
-	if [ -n "$KVM_DISK2" ]; then
+	if [ -n "$KVM_DISK2" ] && [ "$KVM_DRIVE2_IF" = 'virtio' ]; then
+		KVM_DRIVES+=" -drive if=virtio,id=disk2,file=\"$KVM_DISK2\"$KVM_DRIVE2_OPT"
+	elif [ -n "$KVM_DISK2" ]; then
 		KVM_DRIVES+=" -drive if=none,id=disk2,file=\"$KVM_DISK2\"$KVM_DRIVE2_OPT \
-			-device ${KVM_DRIVE2_IF:-$KVM_DRIVE_IF},drive=disk2"
+			-device ${KVM_DRIVE2_IF},drive=disk2"
 	fi
-	if [ -n "$KVM_DISK3" ]; then
+	if [ -n "$KVM_DISK3" ] && [ "$KVM_DRIVE3_IF" = 'virtio' ]; then
+		KVM_DRIVES+=" -drive if=virtio,id=disk3,file=\"$KVM_DISK3\"$KVM_DRIVE3_OPT"
+	elif [ -n "$KVM_DISK3" ]; then
 		KVM_DRIVES+=" -drive if=none,id=disk3,file=\"$KVM_DISK3\"$KVM_DRIVE3_OPT \
-			-device ${KVM_DRIVE3_IF:-$KVM_DRIVE_IF},drive=disk3"
+			-device ${KVM_DRIVE3_IF},drive=disk3"
 	fi
-	if [ -n "$KVM_DISK4" ]; then
+	if [ -n "$KVM_DISK4" ] && [ "$KVM_DRIVE4_IF" = 'virtio' ]; then
+		KVM_DRIVES+=" -drive if=virtio,id=disk4,file=\"$KVM_DISK4\"$KVM_DRIVE4_OPT"
+	elif [ -n "$KVM_DISK4" ]; then
 		KVM_DRIVES+=" -drive if=none,id=disk4,file=\"$KVM_DISK4\"$KVM_DRIVE4_OPT \
-			-device ${KVM_DRIVE4_IF:-$KVM_DRIVE_IF},drive=disk4"
+			-device ${KVM_DRIVE4_IF},drive=disk4"
 	fi
 
 	if [ -n "$KVM_CDROM" ]; then
