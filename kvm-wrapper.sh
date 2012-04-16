@@ -1240,6 +1240,11 @@ case "$ARG1" in
 		;;
 esac
 
+if [ -z "${ARG2}" ]; then
+	print_help
+	exit 1
+fi
+
 kvm_init_env "$ARG2"
 
 if test_nodename "$KVM_CLUSTER_NODE" ; then
