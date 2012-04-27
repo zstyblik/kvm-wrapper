@@ -36,7 +36,7 @@ bs_copy_from_host()
 	if [ -z "${FILE}" ]; then
 		return 1
 	fi
-	cp -rf "$FILE" "$MNTDIR/$FILE"
+	cp -rf --parents "$FILE" "$MNTDIR/$FILE" || true
 } # bs_copy_from_host()
 
 bs_copy_conf_dir()
@@ -165,6 +165,9 @@ EOF
 	fi
 
 	cat >> "$BS_FILE" << EOF
+update-locale
+locale-gen
+dhclient eth0
 
 aptitude update
 
@@ -172,6 +175,11 @@ echo "Bootstrap ended, halting"
 } 2>&1 | /usr/bin/tee -a /var/log/bootstrap.log
 exec /sbin/init 0
 EOF
+
+	# Used by update-locale/locale-gen in BS_FILE
+	bs_copy_from_host /etc/default/locale
+	bs_copy_from_host /etc/locale.gen
+	bs_copy_from_host /etc/locale.alias
 
 	chmod +x "$BS_FILE"
 
@@ -209,7 +217,7 @@ EOF
 		# Copy some files/configuration from host
 		bs_copy_from_host /etc/hosts
 		bs_copy_from_host /etc/resolv.conf
-		bs_copy_from_host /etc/timezone || true
+		bs_copy_from_host /etc/timezone
 		bs_copy_from_host /etc/localtime
 
 
@@ -272,6 +280,8 @@ EOF
 		fi	
 
 		sync
+
+		printf "Bootstrap success '%s'!\n" "${VM_NAME}"
 	} 2>&1 | tee -a "$LOGFILE"
 } #bootstrap_fs()
 
