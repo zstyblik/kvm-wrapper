@@ -798,9 +798,12 @@ kvm_monitor ()
 	if ! test_socket_rw "$MONITOR_FILE"; then
 		fail_exit "Error : could not open monitor socket $MONITOR_FILE."
 	fi
-	printf "Attaching monitor unix socket (using socat). Press ^D (EOF) to exit\n"
-	socat READLINE unix:"$MONITOR_FILE"
-	printf "Monitor exited\n"
+	printf "Attaching monitor unix socket (using socat). Press ^D (EOF) to exit\n"\
+		1>&2
+	local socatin="-"
+	tty >/dev/null 2>&1 && socatin="READLINE"
+	socat $socatin unix:"$MONITOR_FILE"
+	printf "Monitor exited\n" 1>&2
 } # kvm_monitor ()
 
 kvm_serial ()
@@ -811,16 +814,18 @@ kvm_serial ()
 	! test_socket_rw "$SERIAL_FILE" && \
 		fail_exit "Error : could not open serial socket $SERIAL_FILE."
 
-	printf "Attaching serial console unix socket (using socat). Press ^] to exit\n"
+	printf "Attaching serial console unix socket (using socat). Press ^] to exit\n"\
+		1>&2
 	RC=0
-	socat \
-		-,IGNBRK=0,BRKINT=0,PARMRK=0,ISTRIP=0,INLCR=0,IGNCR=0,ICRNL=0,IXON=0,OPOST=1,ECHO=0,ECHONL=0,ICANON=0,ISIG=0,IEXTEN=0,CSIZE=0,PARENB=0,CS8,escape=0x1d\
-		unix:"$SERIAL_FILE" || RC=$?
+	local socatin="-"
+	tty >/dev/null 2>&1\
+		&& socatin="-,IGNBRK=0,BRKINT=0,PARMRK=0,ISTRIP=0,INLCR=0,IGNCR=0,ICRNL=0,IXON=0,OPOST=1,ECHO=0,ECHONL=0,ICANON=0,ISIG=0,IEXTEN=0,CSIZE=0,PARENB=0,CS8,escape=0x1d"
+	socat $socatin unix:"$SERIAL_FILE" || RC=$?
 	if [ $RC -ne 0 ]; then
 		fail_exit "socat must be of version > 1.7.0 to work"
 	fi
 	stty sane
-	printf "Serial console exited\n"
+	printf "Serial console exited\n" 1>&2
 } # kvm_serial ()
 
 kvm_list ()
