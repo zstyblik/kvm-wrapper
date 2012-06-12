@@ -1,0 +1,139 @@
+#!/bin/sh
+# 2012/Apr/03 @ Zdenek Styblik
+# Desc: Slackware's rc script based on Debian's SYSVINIT by bencoh and Asmadeus
+#
+set -e
+set -u
+
+SCRIPTNAME=$(basename "${0}")
+
+KVM_WRAPPER_DIR="/usr/share/kvm-wrapper"
+KVM_WRAPPER="${KVM_WRAPPER_DIR}/kvm-wrapper.sh"
+KVM_VM_LIST="${KVM_WRAPPER_DIR}/startup/startup-list"
+
+# Desc: start all VMs listed in $KVM_VM_LIST
+do_start()
+{
+	if [ ! -f "${KVM_WRAPPER}" ]; then
+		log_begin_msg "Mounting '${KVM_WRAPPER_DIR}' since it doesn't seem here"
+		printf "\n"
+		mount "${KVM_WRAPPER_DIR}"
+		sleep 3
+	fi
+
+	printf "Cleaning old pid files for %s\n" $(hostname -s)
+	rm -vf "${KVM_WRAPPER_DIR}/run/"$(hostname -s)*
+
+	for line in $(grep -E -v '^#' "$KVM_VM_LIST"); do
+		printf "%s" "${line}" | grep -E -e "^KVM_CLUSTER_NODE=\"?$(hostname -s)" \
+			"${KVM_WRAPPER_DIR}/vm/${line}-vm" &> /dev/null && \
+			start_vm "$line"
+	done
+} # do_start()
+
+# Desc: stop all running VMs
+do_stop()
+{
+	for vmname in $($KVM_WRAPPER list |\
+		grep -E -e "Running[[:space:]]on ($(hostname -s)|local)" |\
+		awk '{ print $1 }'); do
+		stop_vm "$vmname"
+	done
+} # do_stop
+
+# Desc: support function imitating/backported from Debian
+log_begin_msg()
+{
+	logger "$@"
+} # log_begin_msg
+
+# Desc: support function imitating/backported from Debian
+log_end_msg()
+{
+	if [ ${1:-1} -eq 0 ]; then
+		logger "OK"
+	else
+		logger "FAIL"
+	fi
+} # log_end_msg
+
+# Desc: start given VM
+start_vm()
+{
+	VM_NAME=${1:-''}
+	if [ -z "${VM_NAME}" ]; then
+		printf "VM name expected, but none given.\n" 1>&2
+		return 1
+	fi
+	log_begin_msg "Starting up VM: ${VM_NAME} ..."
+	EXITNUM=0
+	$KVM_WRAPPER screen "$VM_NAME" || EXITNUM=$?
+	printf "%s\n" "$EXITNUM"
+	case "$EXITNUM" in 
+		0) log_end_msg 0 ;;
+		*) log_end_msg 1 ;;
+	esac
+	return 0
+} # start_vm()
+
+# Desc: stop given VM
+stop_vm()
+{
+	VM_NAME=${1:-''}
+	if [ -z "${VM_NAME}" ]; then
+		printf "VM name expected, but none given.\n" 1>&2
+		return 1
+	fi
+	log_begin_msg "Stopping VM: ${VM_NAME} ..."
+	$KVM_WRAPPER stop "$VM_NAME"
+	log_end_msg 0
+} # stop_vm()
+
+if [ ! -d "${KVM_WRAPPER_DIR}" ]; then
+	printf "Directory '%s' doesn't seem to exist.\n" "${KVM_WRAPPER_DIR}" 1>&2
+	return 1
+fi
+if [ ! -x "${KVM_WRAPPER}" ]; then
+	printf "Script '%s' either doesn't exist or is not executable.\n" \
+		"${KVM_WRAPPER}" 1>&2
+	return 1
+fi
+
+ACTION=${1:-''}
+case "$ACTION" in
+	start)
+		log_begin_msg "Autostarting VMs (kvm-wrapper) ..."
+		printf "\n"
+		do_start
+		case "$?" in
+			0|1) log_end_msg 0 ;;
+			2) log_end_msg 1 ;;
+		esac
+		;;
+	stop)
+		log_begin_msg "Shutting down autostarted VMs (kvm-wrapper) ..."
+		printf "\n"
+		do_stop
+		case "$?" in
+			0|1) log_end_msg 0 ;;
+			2) log_end_msg 1 ;;
+		esac
+		;;
+	restart|force-reload)
+		;;
+	start-vm)
+		VM_NAME=${2:-''}
+		if [ -z "${VM_NAME}" ]; then
+			printf "VM name expected, but none given.\n" 1>&2
+			return 1
+		fi
+		start_vm "$VM_NAME"
+	;;
+	*)
+		printf "Usage: %s start\n" "${SCRIPTNAME}" 1>&2
+		printf "       %s stop\n" "${SCRIPTNAME}" 1>&2
+		printf "       %s start-vm VM_NAME\n" "${SCRIPTNAME}" 1>&2
+		exit 3
+	;;
+esac
+
