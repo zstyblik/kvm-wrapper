@@ -28,7 +28,7 @@ BOOTSTRAP_CONF_DIR="$BOOTSTRAP_DIR/$BOOTSTRAP_DISTRIB/conf"
 BOOTSTRAP_KERNEL="$BOOT_IMAGES_DIR/vmlinuz-$ARCH_SUFFIX"
 BOOTSTRAP_INITRD="$BOOT_IMAGES_DIR/initrd.img-$ARCH_SUFFIX"
 BOOTSTRAP_CACHE="$CACHE_DIR/$BOOTSTRAP_FLAVOR-$DPKG_ARCH-debootstrap.tar"
-### 
+###
 
 bs_copy_from_host()
 {
@@ -97,10 +97,10 @@ EOF
 	fi # if [ "$BOOTSTRAP_PARTITION_TYPE" = "msdos" ]; then
 
 	mkfs.ext3 -L rootdev "$PARTDEV"
-	
+
 	mount "$PARTDEV" "$MNTDIR"
-	
-	CLEANUP+=("umount $MNTDIR")	
+
+	CLEANUP+=("umount $MNTDIR")
 	CLEANUP+=("sync")
 
 	printf "\n\n"
@@ -198,14 +198,14 @@ EOF
 	desc_update_setting "KVM_KERNEL" "$BOOTSTRAP_KERNEL"
 	desc_update_setting "KVM_INITRD" "$BOOTSTRAP_INITRD"
 	desc_update_setting "KVM_APPEND" "root=$rootdev ro init=/bootstrap-init.sh"
-	
+
 
 	kvm_init_env "$VM_NAME"
 
 
 	KVM_MANAGE_DISKS=no kvm_start_vm "$VM_NAME"
 
-	sync	
+	sync
 	mount "$PARTDEV" "$MNTDIR"
 	sync
 
@@ -213,7 +213,7 @@ EOF
 
 	{
 		rm "$BS_FILE"
-	
+
 		# Copy some files/configuration from host
 		bs_copy_from_host /etc/hosts
 		bs_copy_from_host /etc/resolv.conf
@@ -224,7 +224,7 @@ EOF
 		printf "%s\n" "$VM_NAME" > "$MNTDIR/etc/hostname"
 		# Custom files
 		bs_copy_conf_dir
-	
+
 		# fstab
 		cat > "$MNTDIR/etc/fstab" << EOF
 # <file system>	<mount point>	<type>	<options>	<dump>	<pass>
@@ -232,7 +232,7 @@ $rootdev	/		ext3	errors=remount-ro	0	1
 proc		/proc	proc	defaults			0	0
 sysfs		/sys	sysfs	defaults			0	0
 EOF
-	
+
 		if [ -n "$swap_uuid" ]; then
 			printf "%s		none	swap	sw	0	0\n" "$swap_uuid" >> "$MNTDIR/etc/fstab"
 		fi
@@ -247,7 +247,7 @@ iface lo inet loopback
 auto eth0
 EOF
 		if [ -n "$BOOTSTRAP_NET_ADDR" ]; then
-			cat >> "$IF_FILE" << EOF	
+			cat >> "$IF_FILE" << EOF
 iface eth0 inet static
 	address $BOOTSTRAP_NET_ADDR
 	netmask $BOOTSTRAP_NET_MASK
@@ -277,7 +277,7 @@ EOF
 
 		if [ -n "$BOOTSTRAP_FINALIZE_COMMAND" ]; then
 			eval "$BOOTSTRAP_FINALIZE_COMMAND"
-		fi	
+		fi
 
 		sync
 
