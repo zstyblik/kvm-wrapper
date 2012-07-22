@@ -403,7 +403,7 @@ lvm_umount_disk ()
 {
 	set -e
 	printf "unmounting %s\n" "${KVM_DISK1}"
-	umount "/mnt/$VM_NAME" 
+	umount "/mnt/$VM_NAME"
 	rmdir "/mnt/$VM_NAME"
 	unmap_disk "$KVM_DISK1"
 	unprepare_disks "$KVM_DISK1"
@@ -746,7 +746,7 @@ kvm_stop_vm ()
 	if ! test_file "PID_FILE"; then
 		printf "VM %s is now down.\n" $VM_NAME
 	fi
-	
+
 	return 0
 } # kvm_stop_vm ()
 
@@ -864,7 +864,7 @@ kvm_create_descriptor ()
 		RC=0
 		"$KVM_IMG_BIN" create -f "$KVM_IMG_FORMAT" "$KVM_IMG_DISKNAME" \
 			"$KVM_IMG_DISKSIZE" || RC=$?
-		if [ $RC -eq 0 ]; then 
+		if [ $RC -eq 0 ]; then
 			DISK_CREATED=1
 		else
 			printf "Failed creating disk. Creating vm anyway.\n"
@@ -944,12 +944,12 @@ kvm_bootstrap_vm ()
 	fi
 
 	. "$BOOTSTRAP_SCRIPT"
-	
+
 	prepare_disks "$KVM_DISK1"
 	CLEANUP+=("unprepare_disks \"$KVM_DISK1\"")
 	if ! test_blockdev "$KVM_DISK1"; then
 		require_exec "$KVM_NBD_BIN"
-		
+
 		if ! test_file "$KVM_DISK1" ; then
 			fail_exit \
 				"\"$KVM_DISK1\" appears to be neither a blockdev nor a regular file."
@@ -1050,7 +1050,7 @@ kvm_build_vm ()
 	fi
 
 	kvm_create_descriptor "$VM_NAME"
-	
+
 	. "$AUTOCONF_SCRIPT"
 
 	if [ ${#USER_OPTIONS[*]} -gt 0 ]; then
@@ -1125,7 +1125,7 @@ kvm_remove ()
 			fi
 		done
 	fi
-			
+
 	if [ ${#DRIVES_LIST[*]} -gt 0 ]; then
 		printf "The VM %s used the following disks (NOT removed by %s) :\n" \
 			$VM_NAME $SCRIPT_NAME
@@ -1203,7 +1203,7 @@ case "$ARG1" in
 		exit 0
 		;;
 	'status')
-		if [ -n "$ARG2" ]; then 
+		if [ -n "$ARG2" ]; then
 			kvm_status "$ARG2"
 		else kvm_status "all"; fi
 		exit 0
@@ -1268,7 +1268,7 @@ case "$ARG1" in
 			if ! test_socket_rw "$MONITOR_FILE"; then
 				fail_exit "Error : could not open monitor socket $MONITOR_FILE."
 			fi
-			if [ "$KVM_CLUSTER_NODE" = $3 ]; then 
+			if [ "$KVM_CLUSTER_NODE" = $3 ]; then
 				fail_exit "Error: $ARG2 already runs on $3!"
 			fi
 			if [ -z "$(get_cluster_host $3)" ]; then
