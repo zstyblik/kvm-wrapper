@@ -319,7 +319,7 @@ prepare_disks ()
 {
 	case "$KVM_MANAGE_DISKS" in
 		"ACTIVATE_LV")
-			for DISK in $@; do
+			for DISK in "$@"; do
 				if [ "$DISK" = "/dev/"*"/"* ]; then
 					lvchange -ay "$DISK"
 				fi
@@ -336,7 +336,7 @@ unprepare_disks ()
 {
 	case "$KVM_MANAGE_DISKS" in
 		"ACTIVATE_LV")
-			for DISK in $@; do
+			for DISK in "$@"; do
 				if [ "$DISK" = "/dev/"*"/"* ]; then
 					lvchange -an "$DISK"
 				fi
@@ -484,7 +484,7 @@ monitor_send_sysrq ()
 # VM Status
 kvm_status_from_pid ()
 {
-	local VM_PID=$@
+	local VM_PID="$@"
 	if test_nodename "$KVM_CLUSTER_NODE" ; then
 		run_remote "$KVM_CLUSTER_NODE" ps wwp "$VM_PID"
 	else
