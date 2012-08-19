@@ -1158,7 +1158,7 @@ Flags are :
    -s size, --size size:   Specify how big the disk should be in MB
    -e, --edit:             If you want to edit the descriptor after autoconfig
    --swap size:            Size of the swap in MB
-   --favor name, -f name:  Flavor of the debian release(lenny, squeeze..)
+   --flavor name, -f name:  Flavor of the debian release(lenny, squeeze..)
 
  More to come ?
 HCREATE
