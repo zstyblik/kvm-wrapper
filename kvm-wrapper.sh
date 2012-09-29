@@ -896,10 +896,10 @@ kvm_create_descriptor ()
 	fi
 
 	sed -i\
-		's/#KVM_MACADDRESS="$(random_mac)/KVM_MACADDRESS="'$(random_mac)'/g'\
+		's/#KVM_MACADDRESS="`random_mac`/KVM_MACADDRESS="'$(random_mac)'/g'\
 		"$VM_DESCRIPTOR"
 	sed -i\
-		's/#KVM_CLUSTER_NODE="$(hostname -s)/KVM_CLUSTER_NODE="'$(hostname -s)'/g'\
+		's/#KVM_CLUSTER_NODE="`hostname -s`/KVM_CLUSTER_NODE="'$(hostname -s)'/g'\
 		"$VM_DESCRIPTOR"
 
 	printf "VM %s created. Descriptor : %s\n" "$VM_NAME" "$VM_DESCRIPTOR"
