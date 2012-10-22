@@ -140,7 +140,7 @@ test_exec ()
 test_nodename ()
 {
 	local NODE=${1:-''}
-	if [ -n "$NODE" ] && [ "$NODE" != $(hostname -s) ] &&\
+	if [ -n "$NODE" ] && [ "$NODE" != "$(hostname -s)" ] &&\
 		[ -n "$(get_cluster_host "${NODE}")" ]; then
 		return 0
 	fi
