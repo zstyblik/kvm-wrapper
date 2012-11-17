@@ -206,7 +206,7 @@ kvm_init_env ()
 
 	unset PID_FILE
 	test_file "$VM_DESCRIPTOR" ||\
-		fail_exit "Couldn't open VM $VM_NAME descriptor : $VM_DESCRIPTOR"
+		fail_exit "Couldn't open VM $VM_NAME descriptor: $VM_DESCRIPTOR"
 
 	. "$VM_DESCRIPTOR"
 	PID_FILE=${PID_FILE:-"$PID_DIR/${KVM_CLUSTER_NODE:-*}:$VM_NAME-vm.pid"}
@@ -498,7 +498,7 @@ kvm_status_vm ()
 	ARG1=${1:-''}
 	kvm_init_env "$ARG1"
 	test_exist "$PID_FILE" ||\
-		fail_exit "Error : $VM_NAME doesn't seem to be running."
+		fail_exit "Error: $VM_NAME doesn't seem to be running."
 
 	kvm_status_from_pid $(cat "$PID_FILE")
 } # kvm_status_vm ()
@@ -521,7 +521,7 @@ kvm_status ()
 } # kvm_status ()
 
 # MARK1
-# Main function : start a virtual machine
+# Main function: start a virtual machine
 kvm_start_vm ()
 {
 	check_create_dir "$PID_DIR"
@@ -664,7 +664,7 @@ netdev=guest0,mac=$KVM_MACADDRESS"
 		-pidfile $PID_FILE \
 		$KVM_ADDITIONNAL_PARAMS"
 
-	# More sanity checks : VM running, monitor socket existing, etc.
+	# More sanity checks: VM running, monitor socket existing, etc.
 	if [ -z "$FORCE" ]; then
 		if test_exist "$PID_FILE"; then
 			fail_exit "VM $VM_NAME seems to be running already." \
@@ -725,10 +725,10 @@ kvm_stop_vm ()
 	local PROPER=0
 	ELAPSED=$(wait_test_timelimit $KVM_WAIT_SHUTDOWN\
 		"! test_file $PID_FILE") || PROPER=1
-	printf " elapsed time : %s sec\n" "$ELAPSED"
+	printf " elapsed time: %s sec\n" "$ELAPSED"
 
 	if [ $PROPER -eq 0 ]; then
-		printf "VM powerdown properly :)\n"
+		printf "VM powerdown properly:)\n"
 	else
 
 		printf "Trying with magic-sysrq ... (10sec)\n"
@@ -795,7 +795,7 @@ kvm_start_screen_detached ()
 kvm_attach_screen ()
 {
 	if ! test_exist "$PID_FILE"; then
-		fail_exit "Error : $VM_NAME doesn't seem to be running."
+		fail_exit "Error: $VM_NAME doesn't seem to be running."
 	fi
 	$SCREEN_ATTACH "$SCREEN_SESSION_NAME" $SCREEN_EXTRA_OPTS
 } # kvm_attach_screen ()
@@ -803,10 +803,10 @@ kvm_attach_screen ()
 kvm_monitor ()
 {
 	if ! test_exist "$PID_FILE"; then
-		fail_exit "Error : $VM_NAME doesn't seem to be running."
+		fail_exit "Error: $VM_NAME doesn't seem to be running."
 	fi
 	if ! test_socket_rw "$MONITOR_FILE"; then
-		fail_exit "Error : could not open monitor socket $MONITOR_FILE."
+		fail_exit "Error: could not open monitor socket $MONITOR_FILE."
 	fi
 	printf "Attaching monitor unix socket (using socat). Press ^D (EOF) to exit\n"\
 		1>&2
@@ -819,10 +819,10 @@ kvm_monitor ()
 kvm_serial ()
 {
 	! test_exist "$PID_FILE" && \
-		fail_exit "Error : $VM_NAME doesn't seem to be running."
+		fail_exit "Error: $VM_NAME doesn't seem to be running."
 
 	! test_socket_rw "$SERIAL_FILE" && \
-		fail_exit "Error : could not open serial socket $SERIAL_FILE."
+		fail_exit "Error: could not open serial socket $SERIAL_FILE."
 
 	printf "Attaching serial console unix socket (using socat). Press ^] to exit\n"\
 		1>&2
@@ -841,7 +841,7 @@ kvm_serial ()
 kvm_list ()
 {
 	ARG1=${1:-''}
-	printf "Available VM descriptors :\n"
+	printf "Available VM descriptors:\n"
 	for file in "$VM_DIR"/*-vm; do
 		kvm_init_env $(basename "${file%"-vm"}")
 		if [ -z "$ARG1" ] || [ "$ARG1" = "$KVM_CLUSTER_NODE" ]; then
@@ -888,7 +888,7 @@ kvm_create_descriptor ()
 
 	VM_DESCRIPTOR="$VM_DIR/$VM_NAME-vm"
 	if test_exist "$VM_DESCRIPTOR"; then
-		fail_exit "Error : $VM_NAME already exists ($VM_DESCRIPTOR found)"
+		fail_exit "Error: $VM_NAME already exists ($VM_DESCRIPTOR found)"
 	fi
 
 	touch "$VM_DESCRIPTOR"
@@ -896,7 +896,7 @@ kvm_create_descriptor ()
 		fail_exit "Error: Couldn't create $VM_NAME descriptor ($VM_DSECRIPTOR)"
 	fi
 	printf "# VM %s file descriptor\n" "$VM_NAME" >> "$VM_DESCRIPTOR"
-	printf "# Created : %s on %s by %s\n" $(date) "$HOSTNAME"\
+	printf "# Created: %s on %s by %s\n" $(date) "$HOSTNAME"\
 		"$USER" >> "$VM_DESCRIPTOR"
 	printf "\n" >> "$VM_DESCRIPTOR"
 
@@ -915,7 +915,7 @@ kvm_create_descriptor ()
 		's/#KVM_CLUSTER_NODE="`hostname -s`/KVM_CLUSTER_NODE="'$(hostname -s)'/g'\
 		"$VM_DESCRIPTOR"
 
-	printf "VM %s created. Descriptor : %s\n" "$VM_NAME" "$VM_DESCRIPTOR"
+	printf "VM %s created. Descriptor: %s\n" "$VM_NAME" "$VM_DESCRIPTOR"
 } # kvm_create_descriptor ()
 
 kvm_bootstrap_vm ()
@@ -948,7 +948,7 @@ kvm_bootstrap_vm ()
 
 	if test_exist "$PID_FILE" ; then
 		fail_exit \
-			"Error : $VM_NAME seems to be running. Please stop it before trying to bootstrap it."
+			"Error: $VM_NAME seems to be running. Please stop it before trying to bootstrap it."
 	fi
 
 	if [ -n "$ARG2" ]; then
@@ -1100,10 +1100,10 @@ kvm_balloon_vm ()
 		fail_exit "Error: balloon expects parameter, but none given."
 	fi
 	if ! test_exist "$PID_FILE"; then
-		fail_exit "Error : $VM_NAME doesn't seem to be running."
+		fail_exit "Error: $VM_NAME doesn't seem to be running."
 	fi
 	if ! test_socket_rw "$MONITOR_FILE"; then
-		fail_exit "Error : could not open monitor socket $MONITOR_FILE."
+		fail_exit "Error: could not open monitor socket $MONITOR_FILE."
 	fi
 	monitor_send_cmd "balloon ${ARG1}"
 } # kvm_balloon_vm ()
@@ -1113,7 +1113,7 @@ kvm_remove ()
 
 	if test_exist "$PID_FILE"; then
 		fail_exit \
-			"Error : $VM_NAME seems to be running. Please stop it before trying to remove it."
+			"Error: $VM_NAME seems to be running. Please stop it before trying to remove it."
 	fi
 
 	local DRIVES_LIST=( )
@@ -1145,7 +1145,7 @@ kvm_remove ()
 	fi
 
 	if [ ${#DRIVES_LIST[*]} -gt 0 ]; then
-		printf "The VM %s used the following disks (NOT removed by %s) :\n" \
+		printf "The VM %s used the following disks (NOT removed by %s):\n" \
 			$VM_NAME $SCRIPT_NAME
 		for DRIVE in ${DRIVES_LIST[*]}; do
 			printf "@ %s\n" "${DRIVE}"
@@ -1165,7 +1165,7 @@ print_help ()
 			cat<<HCREATE
 Usage $SCRIPT_NAME create [flags] virtual-machine
 
-Flags are :
+Flags are:
    -c num, --cpu num:      Number of cpu the system should have
    -m size, --mem size:    Specify how much RAM you want the system to have
    -s size, --size size:   Specify how big the disk should be in MB
@@ -1281,10 +1281,10 @@ case "$ARG1" in
 	'migrate')
 		if [ $# -eq 3 ]; then
 			if ! test_file "$PID_FILE"; then
-				fail_exit "Error : $VM_NAME doesn't seem to be running."
+				fail_exit "Error: $VM_NAME doesn't seem to be running."
 			fi
 			if ! test_socket_rw "$MONITOR_FILE"; then
-				fail_exit "Error : could not open monitor socket $MONITOR_FILE."
+				fail_exit "Error: could not open monitor socket $MONITOR_FILE."
 			fi
 			if [ "$KVM_CLUSTER_NODE" = $3 ]; then
 				fail_exit "Error: $ARG2 already runs on $3!"
@@ -1323,10 +1323,10 @@ case "$ARG1" in
 	'save-state')
 		if [ $# -eq 2 ]; then
 			if ! test_exist "$PID_FILE"; then
-				fail_exit "Error : $VM_NAME doesn't seem to be running."
+				fail_exit "Error: $VM_NAME doesn't seem to be running."
 			fi
 			if ! test_socket_rw "$MONITOR_FILE"; then
-				fail_exit "Error : could not open monitor socket $MONITOR_FILE."
+				fail_exit "Error: could not open monitor socket $MONITOR_FILE."
 			fi
 			monitor_send_cmd "stop"
 			monitor_send_cmd "migrate_set_speed 4095m"
