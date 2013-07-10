@@ -11,6 +11,7 @@ SCRIPT_PATH="$0"
 SCRIPT_NAME=$(basename $SCRIPT_PATH)
 ROOTDIR="/usr/share/kvm-wrapper"
 CONFFILE="$ROOTDIR/kvm-wrapper.conf"
+HOSTNAME=${HOSTNAME:-$(hostname -f)}
 
 canonpath ()
 {
@@ -83,7 +84,7 @@ test_file_rw ()
 test_pid ()
 {
 	local PID=${1:-''}
-	ps "$PID" &> /dev/null
+	ps "$PID" > /dev/null 2>&1
 } # test_pid ()
 
 test_pid_from_file ()
@@ -253,7 +254,7 @@ run_remote ()
 	require_exec ssh
 	SSH_OPTS=${SSH_OPTS:-"-t"}
 	if [ -n "$KVM_CLUSTER_IDENT" ]; then
-		SSH_OPTS+=" -i $KVM_CLUSTER_IDENT"
+		SSH_OPTS="${SSH_OPTS} -i $KVM_CLUSTER_IDENT"
 	fi
 	echo "ssh $SSH_OPTS $HOST $@"
 	ssh $SSH_OPTS "$HOST" $@
@@ -414,7 +415,7 @@ lvm_umount_disk ()
 serial_perms_forked ()
 {
 	while [ ! -e "$SERIAL_FILE" ]; do
-		! ps "$$" &> /dev/null && return
+		! ps "$$" > /dev/null 2>&1 && return
 		sleep 1
 	done
 	if [ -n "$SERIAL_USER" ]; then
@@ -559,32 +560,32 @@ kvm_start_vm ()
 	KVM_DRIVE3_IF=${KVM_DRIVE3_IF:-$KVM_DRIVE_IF}
 	KVM_DRIVE4_IF=${KVM_DRIVE4_IF:-$KVM_DRIVE_IF}
 	if [ -n "$KVM_DISK1" ] && [ "$KVM_DRIVE1_IF" = 'virtio' ]; then
-		KVM_DRIVES+=" -drive if=virtio,id=disk1,file=\"$KVM_DISK1\"$KVM_DRIVE1_OPT"
+		KVM_DRIVES="${KVM_DRIVES} -drive if=virtio,id=disk1,file=\"$KVM_DISK1\"$KVM_DRIVE1_OPT"
 	elif [ -n "$KVM_DISK1" ]; then
-		KVM_DRIVES+=" -drive if=none,id=disk1,file=\"$KVM_DISK1\"$KVM_DRIVE1_OPT \
+		KVM_DRIVES="${KVM_DRIVES} -drive if=none,id=disk1,file=\"$KVM_DISK1\"$KVM_DRIVE1_OPT \
 			-device ${KVM_DRIVE1_IF},drive=disk1"
 	fi
 	if [ -n "$KVM_DISK2" ] && [ "$KVM_DRIVE2_IF" = 'virtio' ]; then
-		KVM_DRIVES+=" -drive if=virtio,id=disk2,file=\"$KVM_DISK2\"$KVM_DRIVE2_OPT"
+		KVM_DRIVES="${KVM_DRIVES} -drive if=virtio,id=disk2,file=\"$KVM_DISK2\"$KVM_DRIVE2_OPT"
 	elif [ -n "$KVM_DISK2" ]; then
-		KVM_DRIVES+=" -drive if=none,id=disk2,file=\"$KVM_DISK2\"$KVM_DRIVE2_OPT \
+		KVM_DRIVES="${KVM_DRIVES} -drive if=none,id=disk2,file=\"$KVM_DISK2\"$KVM_DRIVE2_OPT \
 			-device ${KVM_DRIVE2_IF},drive=disk2"
 	fi
 	if [ -n "$KVM_DISK3" ] && [ "$KVM_DRIVE3_IF" = 'virtio' ]; then
-		KVM_DRIVES+=" -drive if=virtio,id=disk3,file=\"$KVM_DISK3\"$KVM_DRIVE3_OPT"
+		KVM_DRIVES="${KVM_DRIVES} -drive if=virtio,id=disk3,file=\"$KVM_DISK3\"$KVM_DRIVE3_OPT"
 	elif [ -n "$KVM_DISK3" ]; then
-		KVM_DRIVES+=" -drive if=none,id=disk3,file=\"$KVM_DISK3\"$KVM_DRIVE3_OPT \
+		KVM_DRIVES="${KVM_DRIVES} -drive if=none,id=disk3,file=\"$KVM_DISK3\"$KVM_DRIVE3_OPT \
 			-device ${KVM_DRIVE3_IF},drive=disk3"
 	fi
 	if [ -n "$KVM_DISK4" ] && [ "$KVM_DRIVE4_IF" = 'virtio' ]; then
-		KVM_DRIVES+=" -drive if=virtio,id=disk4,file=\"$KVM_DISK4\"$KVM_DRIVE4_OPT"
+		KVM_DRIVES="${KVM_DRIVES} -drive if=virtio,id=disk4,file=\"$KVM_DISK4\"$KVM_DRIVE4_OPT"
 	elif [ -n "$KVM_DISK4" ]; then
-		KVM_DRIVES+=" -drive if=none,id=disk4,file=\"$KVM_DISK4\"$KVM_DRIVE4_OPT \
+		KVM_DRIVES="${KVM_DRIVES} -drive if=none,id=disk4,file=\"$KVM_DISK4\"$KVM_DRIVE4_OPT \
 			-device ${KVM_DRIVE4_IF},drive=disk4"
 	fi
 
 	if [ -n "$KVM_CDROM" ]; then
-		KVM_DRIVES="$KVM_DRIVES -cdrom \"$KVM_CDROM\""
+		KVM_DRIVES="${KVM_DRIVES} -cdrom \"$KVM_CDROM\""
 	fi
 	if [ -z "$KVM_DRIVES" ] && [ "$KVM_BOOTDEVICE" != "n" ]; then
 		fail_exit \
@@ -1131,7 +1132,7 @@ kvm_remove ()
 	if [ ${#DRIVES_LIST[*]} -gt 0 ]; then
 		LAST_ELEMENT=$((${#DRIVES_LIST[*]}-1))
 		for i in $(seq $LAST_ELEMENT -1 0); do
-			if lvdisplay "${DRIVES_LIST[$i]}" &> /dev/null; then
+			if lvdisplay "${DRIVES_LIST[$i]}" > /dev/null 2>&1; then
 				if lvremove "${DRIVES_LIST[$i]}"; then
 					unset DRIVES_LIST[$i]
 				fi
@@ -1302,8 +1303,8 @@ case "$ARG1" in
 	'receive-migrate')
 		if [ $# -eq 3 ]; then
 #			KVM_ADDITIONNAL_PARAMS+=" -incoming unix:$RUN_DIR/migrate-$VM_NAME.sock"
-			KVM_ADDITIONNAL_PARAMS+=" -incoming tcp:"
-			KVM_ADDITIONNAL_PARAMS+="$(get_cluster_host $(hostname -s)):$3"
+			KVM_ADDITIONNAL_PARAMS="${KVM_ADDITIONNAL_PARAMS} -incoming tcp:"
+			KVM_ADDITIONNAL_PARAMS="${KVM_ADDITIONNAL_PARAMS}$(get_cluster_host $(hostname -s)):$3"
 			FORCE="yes"
 			kvm_start_vm "$VM_NAME"
 		else print_help; fi
@@ -1339,7 +1340,7 @@ case "$ARG1" in
 		;;
 	'load-state-here')
 		if [ $# -eq 2 ]; then
-			KVM_ADDITIONNAL_PARAMS+=" -incoming \"exec: gzip -c -d /var/cache/kvm-wrapper/$ARG2-state.gz\""
+			KVM_ADDITIONNAL_PARAMS="${KVM_ADDITIONNAL_PARAMS} -incoming \"exec: gzip -c -d /var/cache/kvm-wrapper/$ARG2-state.gz\""
 			FORCE="yes"
 			kvm_start_vm "$ARG2"
 		else print_help; fi
