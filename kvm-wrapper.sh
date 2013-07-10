@@ -611,6 +611,9 @@ kvm_start_vm ()
 	fi
 	export KVM_BRIDGE
 	KVM_NET_SCRIPT="$ROOTDIR/net/kvm"
+	KVM_NETWORK_OPT=${KVM_NETWORK_OPT:-''}
+	KVM_BRIDGE_OPT=${KVM_BRIDGE_OPT:-''}
+	export KVM_BRIDGE_OPT
 
 	# Backwards compatibility
 	if [ "${KVM_NETWORK_MODEL}" = "vhost_net" ]; then
@@ -625,9 +628,14 @@ netdev=guest0,mac=$KVM_MACADDRESS"
 		if [ ! -d "${KVM_BRIDGE}" ]; then
 			fail_exit "KVM_BRIDGE '${KVM_BRIDGE}' doesn't seem to be a socket."
 		fi
-		KVM_NET="-netdev vde,id=hostnet0,sock=$KVM_BRIDGE \
+		KVM_NET="-netdev vde,id=hostnet0,sock=${KVM_BRIDGE}${KVM_BRIDGE_OPT} \
 			-device $KVM_NETWORK_MODEL,netdev=hostnet0,id=net0,\
-mac=${KVM_MACADDRESS},multifunction=on"
+mac=${KVM_MACADDRESS},multifunction=on${KVM_NETWORK_OPT}"
+	elif [ "${KVM_NETWORK_TYPE}" = "ovs" ]; then
+		KVM_NET_SCRIPT="${ROOTDIR}/net/kvm-ovs"
+		KVM_NET="-netdev type=tap,id=guest0,script=$KVM_NET_SCRIPT-ifup,\
+downscript=$KVM_NET_SCRIPT-ifdown -device $KVM_NETWORK_MODEL,\
+netdev=guest0,mac=$KVM_MACADDRESS"
 	else
 		KVM_NET="-netdev type=tap,id=guest0,script=$KVM_NET_SCRIPT-ifup,\
 downscript=$KVM_NET_SCRIPT-ifdown -device $KVM_NETWORK_MODEL,\
