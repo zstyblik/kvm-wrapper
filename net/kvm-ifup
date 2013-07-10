@@ -3,8 +3,8 @@
 # Script called by kvm on tap interface creation
 #
 
-echo "$0:"
-echo "Adding $1 to bridge interface $KVM_BRIDGE"
-brctl addif "$KVM_BRIDGE" "$1"
-ip link set "$1" up
+printf -- "%s:\n" "${0}"
+printf "Adding %s to bridge interface %s\n" "${1}" "${KVM_BRIDGE}"
+brctl addif "${KVM_BRIDGE}" "${1}"
+ip link set "${1}" up
 
