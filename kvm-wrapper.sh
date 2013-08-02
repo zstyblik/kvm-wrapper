@@ -12,6 +12,7 @@ SCRIPT_NAME=$(basename $SCRIPT_PATH)
 ROOTDIR="/usr/share/kvm-wrapper"
 CONFFILE="$ROOTDIR/kvm-wrapper.conf"
 HOSTNAME=${HOSTNAME:-$(hostname -f)}
+EDITOR=${EDITOR:-""}
 
 canonpath ()
 {
@@ -34,6 +35,14 @@ fail_exit ()
 	printf "Exiting.\n"
 	exit 1
 } # fail_exit ()
+
+# Check whether EDITOR var is set
+test_editor()
+{
+	if [ -z "${EDITOR}" ]; then
+		fail_exit "Please set the EDITOR envvar to your favourite editor."
+	fi
+}
 
 # FS node testers
 test_exist ()
@@ -856,6 +865,7 @@ kvm_list ()
 kvm_edit_descriptor ()
 {
 	ARG1=${1:-''}
+	test_editor
 	kvm_init_env "$ARG1"
 	test_file "$VM_DESCRIPTOR" && "$EDITOR" "$VM_DESCRIPTOR"
 } # kvm_edit_descriptor ()
@@ -1049,6 +1059,7 @@ kvm_build_vm ()
 			"-e"|"--edit"|"--edit-conf")
 				EDIT_CONF="yes"
 				shift
+				test_editor
 				;;
 		esac
 	done
