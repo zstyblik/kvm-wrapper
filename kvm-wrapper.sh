@@ -587,10 +587,11 @@ kvm_start_vm ()
 	if [ -n "$KVM_CDROM" ]; then
 		KVM_DRIVES="${KVM_DRIVES} -cdrom \"$KVM_CDROM\""
 	fi
-	if [ -z "$KVM_DRIVES" ] && [ "$KVM_BOOTDEVICE" != "n" ]; then
+	if [ -z "$KVM_DRIVES" ] && ! printf -- "%s" "$KVM_BOOTDEVICE" | \
+	   	grep -q -i -E -e 'order=[a-z]*n[a-z]*(,)?'; then
 		fail_exit \
-			"Your VM $VM_NAME should at least use one cdrom or harddisk drive!" \
-			"Please check your conf file:" "$VM_DESCRIPTOR"
+			"Your VM $VM_NAME should at least use one cdrom, harddisk drive or netboot!" \
+			"Please, check your conf file:" "$VM_DESCRIPTOR"
 	fi
 	local LINUXBOOT=""
 	if [ -n "$KVM_KERNEL" ]; then
