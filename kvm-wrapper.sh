@@ -892,6 +892,9 @@ kvm_create_descriptor ()
 	fi
 
 	touch "$VM_DESCRIPTOR"
+	if ! test_exist "$VM_DESCRIPTOR"; then
+		fail_exit "Error: Couldn't create $VM_NAME descriptor ($VM_DSECRIPTOR)"
+	fi
 	printf "# VM %s file descriptor\n" "$VM_NAME" >> "$VM_DESCRIPTOR"
 	printf "# Created : %s on %s by %s\n" $(date) "$HOSTNAME"\
 		"$USER" >> "$VM_DESCRIPTOR"
