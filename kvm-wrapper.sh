@@ -1342,7 +1342,7 @@ case "$ARG1" in
 			monitor_send_cmd "stop"
 			monitor_send_cmd "migrate_set_speed 4095m"
 			monitor_send_cmd \
-				"migrate \"exec:gzip -c > /var/cache/kvm-wrapper/$ARG2-state.gz\""
+				"migrate \"exec:gzip -c > ${CACHE_DIR}/${VM_NAME}-state.gz\""
 			monitor_send_cmd "quit"
 		else print_help; fi
 		;;
@@ -1355,7 +1355,7 @@ case "$ARG1" in
 		;;
 	'load-state-here')
 		if [ $# -eq 2 ]; then
-			KVM_ADDITIONNAL_PARAMS="${KVM_ADDITIONNAL_PARAMS} -incoming \"exec: gzip -c -d /var/cache/kvm-wrapper/$ARG2-state.gz\""
+			KVM_ADDITIONNAL_PARAMS="${KVM_ADDITIONNAL_PARAMS} -incoming \"exec: gzip -c -d $CACHE_DIR/$VM_NAME-state.gz\""
 			FORCE="yes"
 			kvm_start_vm "$ARG2"
 		else print_help; fi
