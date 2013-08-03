@@ -529,6 +529,14 @@ kvm_status ()
 	fi
 } # kvm_status ()
 
+kvm_top()
+{
+	local nodelist="{local,$KVM_CLUSTER_NODE}"
+	local pattern="$PID_DIR/$nodelist:*-vm.pid"
+	pidlist=$(eval cat -- "$pattern" 2>/dev/null | sed -e ':a;N;s/\n/,/;ta')
+	top -d 2 -cp $pidlist
+}
+
 # MARK1
 # Main function: start a virtual machine
 kvm_start_vm ()
@@ -1261,6 +1269,8 @@ Usage: $SCRIPT_NAME {start|screen|stop} virtual-machine
 
        $SCRIPT_NAME status [virtual-machine]
        $SCRIPT_NAME list [node]
+       $SCRIPT_NAME top
+       $SCRIPT_NAME conf
 
        $SCRIPT_NAME balloon virtual-machine target_RAM
        $SCRIPT_NAME bootstrap virtual-machine
@@ -1305,6 +1315,10 @@ case "$ARG1" in
 		if [ -n "$ARG2" ]; then
 			kvm_status "$ARG2"
 		else kvm_status "all"; fi
+		exit 0
+		;;
+	'top')
+		kvm_top
 		exit 0
 		;;
 	'rundisk')
