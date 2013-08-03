@@ -1005,7 +1005,67 @@ kvm_bootstrap_vm ()
 	return 0
 } # kvm_bootstrap_vm ()
 
-kvm_build_vm ()
+kvm_migrate_vm()
+{
+	local REMOTE_NODE="$2"
+
+	test_file "$PID_FILE" || \
+		fail_exit "Error : $VM_NAME doesn't seem to be running."
+	test_socket_rw "$MONITOR_FILE" || \
+		fail_exit "Error : could not open monitor socket $MONITOR_FILE."
+	if [ "$KVM_CLUSTER_NODE" = "${REMOTE_NODE}" ]; then
+		fail_exit "Error: $VM_NAME already runs on $REMOTE_NODE!"
+	fi
+	local rnode=$(get_cluster_host "${REMOTE_NODE}")
+	if [ -z "${tmp_rnode}" ]; then
+		fail_exit "Error: Unknown host $REMOTE_NODE!"
+	fi
+	
+	# Update VM configuration with new node
+	desc_update_setting "KVM_CLUSTER_NODE" "$REMOTE_NODE"
+	PORT=$(($(hexdump -n 2 -e '/2 "%u"' /dev/urandom) % 1000 + 4000))
+
+	# Launch new instance (on pre-configured node)
+	"$SCRIPT_PATH" receive-migrate "$VM_NAME" $PORT
+	sleep 1
+
+	monitor_send_cmd "migrate_set_speed 1024m"
+#	monitor_send_cmd "migrate \"exec: ssh `get_cluster_host $REMOTE_NODE` socat - unix:$RUN_DIR/migrate-$REMOTE_NODE.sock\""
+	monitor_send_cmd "migrate tcp:${rnode}:${PORT}"
+	monitor_send_cmd "quit"
+}
+
+kvm_receive_migrate_vm()
+{
+	local PORT=${2:-""}
+
+#	KVM_ADDITIONNAL_PARAMS+=" -incoming unix:$RUN_DIR/migrate-$VM_NAME.sock"
+	local rnode=$(get_cluster_host $(hostname -s))
+	KVM_ADDITIONNAL_PARAMS="${KVM_ADDITIONAL_PARAMS} -incoming tcp::$PORT"
+	FORCE="yes"
+	kvm_start_vm "$VM_NAME"
+}
+
+kvm_save_state_vm()
+{
+	test_exist "$PID_FILE" || \
+		fail_exit "Error : $VM_NAME doesn't seem to be running."
+	test_socket_rw "$MONITOR_FILE" || \
+		fail_exit "Error : could not open monitor socket $MONITOR_FILE."
+	monitor_send_cmd "stop"
+	monitor_send_cmd "migrate_set_speed 4095m"
+	monitor_send_cmd "migrate \"exec:gzip -c > /var/cache/kvm-wrapper/$VM_NAME-state.gz\""
+	monitor_send_cmd "quit"
+}
+
+kvm_load_state_vm()
+{
+	KVM_ADDITIONNAL_PARAMS="${KVM_ADDITIONAL_PARAMS} -incoming \"exec: gzip -c -d /var/cache/kvm-wrapper/$VM_NAME-state.gz\""
+	FORCE="yes"
+	kvm_start_vm "$2"
+}
+
+kvm_build_vm()
 {
 	local USER_OPTIONS=( )
 	EDIT_CONF=""
@@ -1119,7 +1179,7 @@ kvm_balloon_vm ()
 	monitor_send_cmd "balloon ${ARG1}"
 } # kvm_balloon_vm ()
 
-kvm_remove ()
+kvm_remove_vm()
 {
 
 	if test_exist "$PID_FILE"; then
@@ -1210,6 +1270,11 @@ HELP
 	exit 2
 } # print_help ()
 
+if [ $# -eq 0 ]; then
+	print_help
+	exit 0
+fi
+
 test_dir "$ROOTDIR" || \
 	fail_exit "Couldn't open kvm-wrapper's root directory:" "$ROOTDIR"
 test_file "$CONFFILE" || \
@@ -1285,66 +1350,36 @@ fi
 # Argument parsing
 case "$ARG1" in
 	'remove')
-		if [ $# -eq 2 ]; then
-			kvm_remove "$ARG2"
-		else print_help; fi
+		if [ $# -ne 2 ]; then
+			print_help
+		fi
+		kvm_remove "$2"
 		;;
 	'migrate')
-		if [ $# -eq 3 ]; then
-			if ! test_file "$PID_FILE"; then
-				fail_exit "Error: $VM_NAME doesn't seem to be running."
-			fi
-			if ! test_socket_rw "$MONITOR_FILE"; then
-				fail_exit "Error: could not open monitor socket $MONITOR_FILE."
-			fi
-			if [ "$KVM_CLUSTER_NODE" = $3 ]; then
-				fail_exit "Error: $ARG2 already runs on $3!"
-			fi
-			if [ -z "$(get_cluster_host $3)" ]; then
-				fail_exit "Error: Unknown host $3!"
-			fi
-			desc_update_setting "KVM_CLUSTER_NODE" "$3"
-			random=$(hexdump -n 2 -e '/2 "%u"' /dev/urandom)
-			PORT=$((random%1000+4000))
-			"$SCRIPT_PATH" receive-migrate-screen "$ARG2" $PORT
-			sleep 1
-			monitor_send_cmd "migrate_set_speed 1024m"
-#			monitor_send_cmd "migrate \"exec: ssh $(get_cluster_host $3) \
-#				socat - unix:$RUN_DIR/migrate-$3.sock\""
-			monitor_send_cmd "migrate tcp:$(get_cluster_host $3):$PORT"
-			monitor_send_cmd "quit"
-		else print_help; fi
+		if [ $# -ne 3 ]; then
+			print_help
+		fi
+		kvm_migrate_vm "$2" "$3"
+		;;
+	'receive-migrate-here')
+		if [ $# -ne 3 ]; then
+			print_help
+		fi
+		kvm_receive_migrate_vm "$2" "$3"
 		;;
 	'receive-migrate')
-		if [ $# -eq 3 ]; then
-#			KVM_ADDITIONNAL_PARAMS+=" -incoming unix:$RUN_DIR/migrate-$VM_NAME.sock"
-			KVM_ADDITIONNAL_PARAMS="${KVM_ADDITIONNAL_PARAMS} -incoming tcp:"
-			KVM_ADDITIONNAL_PARAMS="${KVM_ADDITIONNAL_PARAMS}$(get_cluster_host $(hostname -s)):$3"
-			FORCE="yes"
-			kvm_start_vm "$VM_NAME"
-		else print_help; fi
-		;;
-	'receive-migrate-screen')
-		if [ $# -eq 3 ]; then
-			$SCREEN_START_DETACHED "$SCREEN_SESSION_NAME" $SCREEN_EXTRA_OPTS \
-				"$SCRIPT_PATH" receive-migrate "$VM_NAME" "$3"
-			sleep 1
-		else print_help; fi
+		if [ $# -ne 3 ]; then
+			print_help
+		fi
+		$SCREEN_START_DETACHED "$SCREEN_SESSION_NAME" $SCREEN_EXTRA_OPTS \
+			"$SCRIPT_PATH" receive-migrate-here "$VM_NAME" "$3"
+		sleep 1
 		;;
 	'save-state')
-		if [ $# -eq 2 ]; then
-			if ! test_exist "$PID_FILE"; then
-				fail_exit "Error: $VM_NAME doesn't seem to be running."
-			fi
-			if ! test_socket_rw "$MONITOR_FILE"; then
-				fail_exit "Error: could not open monitor socket $MONITOR_FILE."
-			fi
-			monitor_send_cmd "stop"
-			monitor_send_cmd "migrate_set_speed 4095m"
-			monitor_send_cmd \
-				"migrate \"exec:gzip -c > ${CACHE_DIR}/${VM_NAME}-state.gz\""
-			monitor_send_cmd "quit"
-		else print_help; fi
+		if [ $# -ne 2 ]; then
+			print_help
+		fi
+		kvm_save_state_vm "$2"
 		;;
 	'load-state')
 		if [ $# -eq 2 ]; then
@@ -1354,11 +1389,10 @@ case "$ARG1" in
 		else print_help; fi
 		;;
 	'load-state-here')
-		if [ $# -eq 2 ]; then
-			KVM_ADDITIONNAL_PARAMS="${KVM_ADDITIONNAL_PARAMS} -incoming \"exec: gzip -c -d $CACHE_DIR/$VM_NAME-state.gz\""
-			FORCE="yes"
-			kvm_start_vm "$ARG2"
-		else print_help; fi
+		if [ $# -ne 2 ]; then
+			print_help
+		fi
+		kvm_load_state_vm "$2"
 		;;
 	'balloon')
 		if [ $# -eq 3 ]; then
