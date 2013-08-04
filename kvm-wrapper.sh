@@ -521,6 +521,9 @@ kvm_status ()
 	if [ ! "$ARG1" = "all" ]; then
 		kvm_status_vm "$ARG1"
 	else
+		ls "$PID_DIR"/*-vm.pid >/dev/null 2>&1 ||\
+			fail_exit "No VMs to get status about."
+
 		for KVM_CLUSTER_NODE in $(ls -1 $PID_DIR/*-vm.pid| cut -d':' -f1|\
 			sed -e 's:.*/::'| sort | uniq); do
 			printf "servers on %s:\n" "${KVM_CLUSTER_NODE}"
@@ -858,6 +861,9 @@ kvm_serial ()
 kvm_list ()
 {
 	ARG1=${1:-''}
+
+	ls "$VM_DIR"/*-vm >/dev/null 2>&1 || fail_exit "No VMs to list."
+
 	printf "Available VM descriptors:\n"
 	for file in "$VM_DIR"/*-vm; do
 		kvm_init_env $(basename "${file%"-vm"}")
