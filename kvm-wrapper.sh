@@ -223,7 +223,7 @@ kvm_init_env ()
 
 random_mac ()
 {
-  BASE_MAC=${BASE_MAC:-"52:54:00:ff"}
+	BASE_MAC=${BASE_MAC:-"52:54:00:ff"}
 	local rand1=$(echo "$(hexdump -n 2 -e '/2 "%u"' /dev/urandom) % 256" | bc)
 	local rand2=$(echo "$(hexdump -n 2 -e '/2 "%u"' /dev/urandom) % 256" | bc)
 	local MACADDRESS=$(printf "%s:%02x:%02x" "$BASE_MAC" "${rand1}" "${rand2}")
