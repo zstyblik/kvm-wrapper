@@ -1328,28 +1328,32 @@ case "$ARG1" in
 		exit 0
 		;;
 	'rundisk')
-		if [ $# -eq 2 ]; then
-			kvm_run_disk "$ARG2"
-		else print_help; fi
+		if [ $# -ne 2 ]; then
+			print_help
+		fi
+		kvm_run_disk "$ARG2"
 		exit 0
 		;;
 	'edit')
-		if [ $# -eq 2 ]; then
-			kvm_edit_descriptor "$ARG2"
-		else print_help; fi
+		if [ $# -ne 2 ]; then
+			print_help
+		fi
+		kvm_edit_descriptor "$ARG2"
 		exit 0
 		;;
 	create-desc*)
-		if [ $# -ge 2 ]; then
-			kvm_create_descriptor "$ARG2" ${3:-''} ${4:-''}
-		else print_help; fi
+		if [ $# -lt 2 ]; then
+			print_help
+		fi
+		kvm_create_descriptor "$ARG2" ${3:-''} ${4:-''}
 		exit 0
 		;;
 	'create'|'build')
-		if [ $# -ge 2 ]; then
-			shift
-			kvm_build_vm $@
-		else print_help; fi
+		if [ $# -lt 2 ]; then
+			print_help
+		fi
+		shift
+		kvm_build_vm $@
 		exit 0
 		;;
 	'conf')
@@ -1411,11 +1415,12 @@ case "$ARG1" in
 		kvm_save_state_vm "$2"
 		;;
 	'load-state')
-		if [ $# -eq 2 ]; then
-			check_create_dir "$RUN_DIR"
-			$SCREEN_START_ATTACHED "$SCREEN_SESSION_NAME" $SCREEN_EXTRA_OPTS \
-				"$SCRIPT_PATH" load-state-here "$VM_NAME"
-		else print_help; fi
+		if [ $# -ne 2 ]; then
+			print_help
+		fi
+		check_create_dir "$RUN_DIR"
+		$SCREEN_START_ATTACHED "$SCREEN_SESSION_NAME" $SCREEN_EXTRA_OPTS \
+			"$SCRIPT_PATH" load-state-here "$VM_NAME"
 		;;
 	'load-state-here')
 		if [ $# -ne 2 ]; then
@@ -1424,56 +1429,67 @@ case "$ARG1" in
 		kvm_load_state_vm "$2"
 		;;
 	'balloon')
-		if [ $# -eq 3 ]; then
-			ARG3=${3:-''}
-			kvm_balloon_vm "$ARG3"
-		else print_help; fi
+		if [ $# -ne 3 ]; then
+			print_help
+		fi
+		ARG3=${3:-''}
+		kvm_balloon_vm "$ARG3"
 		;;
 	'restart')
-		if [ $# -eq 2 ]; then
-			kvm_stop_vm "$ARG2"
-			kvm_start_screen "$ARG2"
-		else print_help; fi
+		if [ $# -ne 2 ]; then
+			print_help
+		fi
+		kvm_stop_vm "$ARG2"
+		kvm_start_screen "$ARG2"
 		;;
 	'start')
-		if [ $# -eq 2 ]; then
-			kvm_start_screen "$ARG2"
-		else print_help; fi
+		if [ $# -ne 2 ]; then
+			print_help
+		fi
+		kvm_start_screen "$ARG2"
 		;;
 	'start-here')
-		if [ $# -eq 2 ]; then
-			kvm_start_vm "$ARG2"
-		else print_help; fi
+		if [ $# -ne 2 ]; then
+			print_help
+		fi
+		kvm_start_vm "$ARG2"
 		;;
 	'screen')
-		if [ $# -eq 2 ]; then
-			kvm_start_screen_detached "$ARG2"
-		else print_help; fi
+		if [ $# -ne 2 ]; then
+			print_help
+		fi
+		kvm_start_screen_detached "$ARG2"
 		;;
 	'attach')
-		if [ $# -eq 2 ]; then
-			kvm_attach_screen "$ARG2"
-		else print_help; fi
+		if [ $# -ne 2 ]; then
+			print_help
+		fi
+		kvm_attach_screen "$ARG2"
 		;;
 	'monitor')
-		if [ $# -eq 2 ]; then
-			kvm_monitor "$ARG2"
-		else print_help; fi
+		if [ $# -ne 2 ]; then
+			print_help
+		fi
+		kvm_monitor "$ARG2"
 		;;
 	'serial')
-		if [ $# -eq 2 ]; then
-			kvm_serial "$ARG2"
-		else print_help; fi
+		if [ $# -ne 2 ]; then
+			print_help
+		fi
+		kvm_serial "$ARG2"
 		;;
 	'stop')
-		if [ $# -eq 2 ]; then
-			kvm_stop_vm "$ARG2"
+		if [ $# -ne 2 ]; then
+			print_help
+		fi
+		kvm_stop_vm "$ARG2"
 		else print_help; fi
 		;;
 	'bootstrap')
-		if [ $# -ge 2 ]; then
-			kvm_bootstrap_vm "$ARG2" ${3:-''}
-		else print_help; fi
+		if [ $# -lt 2 ]; then
+			print_help
+		fi
+		kvm_bootstrap_vm "$ARG2" ${3:-''}
 		;;
 	'create-disk')
 		lvm_create_disk "$ARG2"
