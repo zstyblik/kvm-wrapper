@@ -1483,7 +1483,6 @@ case "$ARG1" in
 			print_help
 		fi
 		kvm_stop_vm "$ARG2"
-		else print_help; fi
 		;;
 	'bootstrap')
 		if [ $# -lt 2 ]; then
