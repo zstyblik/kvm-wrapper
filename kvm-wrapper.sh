@@ -14,6 +14,73 @@ CONFFILE="$ROOTDIR/kvm-wrapper.conf"
 HOSTNAME=${HOSTNAME:-$(hostname -f)}
 EDITOR=${EDITOR:-""}
 
+get_kvm_disk()
+{
+	local config=${1:-''}
+	local i=${2:-''}
+	if [ -z "$config" ] || [ -z "$2" ]; then
+		return 1
+	fi
+	grep -E -e "^KVM_DISK${i}=" "${config}" | awk -F'"' '{ print $2 }'
+}
+
+fnmatch()
+{
+	local arg1=${1:-''}
+	local arg2=${2:-''}
+	case "$arg2" in $arg1) return 0;; *) return 1;; esac
+}
+
+parse_disks()
+{
+	local config=${1:-''}
+	local i=${2:-''}
+	if [ -z "$i" ] || [ -z "$config" ]; then
+		return 1
+	fi
+	# KVM_DISKx = path to image, can't be empty
+	# KVM_DRIVEx_IF = drive interface, can't be empty
+	# KVM_DRIVEx_OPT = options, can be empty
+	local glue_disk="KVM_DISK${i}"
+	local glue_drvif="KVM_DRIVE${i}_IF"
+	local glue_drvopt="KVM_DRIVE${i}_OPT"
+	#
+	local kvm_disk=""
+	local kvm_drvif="ide-hd"
+	local kvm_drvopt=""
+	for LINE in $(grep -E \
+		-e "^${glue_disk}=" \
+		-e "^${glue_drvif}=" \
+		-e "^${glue_drvopt}=" \
+		"${config}"); do
+		if fnmatch "${glue_disk}=*" "${LINE}"; then
+			kvm_disk=$(printf -- "%s" "${LINE}" | \
+				awk -F'"' '{ print $2 }')
+		elif fnmatch "${glue_drvif}=*" "${LINE}"; then
+			kvm_drvif=$(printf -- "%s" "${LINE}" | \
+				awk -F'"' '{ print $2 }')
+		elif fnmatch "${glue_drvopt}=*" "${LINE}"; then
+			kvm_drvopt=$(printf -- "%s" "${LINE}" | \
+				awk -F'"' '{ print $2 }')
+		else
+			# Don't print-out garbage
+			# printf -- "U: '%s'\n" "${LINE}"
+			true
+		fi
+	done
+
+	if [ -z "$kvm_disk" ] || [ -z "$kvm_drvif" ]; then
+		return 1
+	fi
+	if [ "$kvm_drvif" = 'virtio' ]; then
+		printf " -drive if=virtio,id=disk%i,file=\"%s\"%s" \
+			"$i" "${kvm_disk}" "${kvm_drvopt}"
+	else
+		printf " -drive if=none,id=disk%i,file=\"%s\"%s -device %s,drive=disk%i" \
+			"$i" "${kvm_disk}"  "${kvm_drvopt}" "${kvm_drvif}" "$i"
+	fi
+}
+
 canonpath ()
 {
 	ARG1=${1:-''}
@@ -553,15 +620,6 @@ kvm_start_vm ()
 	fi
 	require_exec "$KVM_BIN"
 	# Defaults
-	KVM_DISK1=${KVM_DISK1:-''}
-	KVM_DRIVE_OPT=${KVM_DRIVE_OPT:-''}
-	KVM_DRIVE1_OPT=${KVM_DRIVE1_OPT:-$KVM_DRIVE_OPT}
-	KVM_DISK2=${KVM_DISK2:-''}
-	KVM_DRIVE2_OPT=${KVM_DRIVE2_OPT:-$KVM_DRIVE_OPT}
-	KVM_DISK3=${KVM_DISK3:-''}
-	KVM_DRIVE3_OPT=${KVM_DRIVE3_OPT:-$KVM_DRIVE_OPT}
-	KVM_DISK4=${KVM_DISK4:-''}
-	KVM_DRIVE4_OPT=${KVM_DRIVE4_OPT:-$KVM_DRIVE_OPT}
 	KVM_CDROM=${KVM_CDROM:-''}
 	KVM_KERNEL=${KVM_KERNEL:-''}
 	KVM_INITRD=${KVM_INITRD:-''}
@@ -574,35 +632,20 @@ kvm_start_vm ()
 	SERIAL_GROUP=${SERIAL_GROUP:-''}
 	# Build KVM Drives (hdd, cdrom) parameters
 	local KVM_DRIVES=""
-	KVM_DRIVE_IF="${KVM_DRIVE_IF:-ide-hd}"
-	KVM_DRIVE1_IF=${KVM_DRIVE1_IF:-$KVM_DRIVE_IF}
-	KVM_DRIVE2_IF=${KVM_DRIVE2_IF:-$KVM_DRIVE_IF}
-	KVM_DRIVE3_IF=${KVM_DRIVE3_IF:-$KVM_DRIVE_IF}
-	KVM_DRIVE4_IF=${KVM_DRIVE4_IF:-$KVM_DRIVE_IF}
-	if [ -n "$KVM_DISK1" ] && [ "$KVM_DRIVE1_IF" = 'virtio' ]; then
-		KVM_DRIVES="${KVM_DRIVES} -drive if=virtio,id=disk1,file=\"$KVM_DISK1\"$KVM_DRIVE1_OPT"
-	elif [ -n "$KVM_DISK1" ]; then
-		KVM_DRIVES="${KVM_DRIVES} -drive if=none,id=disk1,file=\"$KVM_DISK1\"$KVM_DRIVE1_OPT \
-			-device ${KVM_DRIVE1_IF},drive=disk1"
-	fi
-	if [ -n "$KVM_DISK2" ] && [ "$KVM_DRIVE2_IF" = 'virtio' ]; then
-		KVM_DRIVES="${KVM_DRIVES} -drive if=virtio,id=disk2,file=\"$KVM_DISK2\"$KVM_DRIVE2_OPT"
-	elif [ -n "$KVM_DISK2" ]; then
-		KVM_DRIVES="${KVM_DRIVES} -drive if=none,id=disk2,file=\"$KVM_DISK2\"$KVM_DRIVE2_OPT \
-			-device ${KVM_DRIVE2_IF},drive=disk2"
-	fi
-	if [ -n "$KVM_DISK3" ] && [ "$KVM_DRIVE3_IF" = 'virtio' ]; then
-		KVM_DRIVES="${KVM_DRIVES} -drive if=virtio,id=disk3,file=\"$KVM_DISK3\"$KVM_DRIVE3_OPT"
-	elif [ -n "$KVM_DISK3" ]; then
-		KVM_DRIVES="${KVM_DRIVES} -drive if=none,id=disk3,file=\"$KVM_DISK3\"$KVM_DRIVE3_OPT \
-			-device ${KVM_DRIVE3_IF},drive=disk3"
-	fi
-	if [ -n "$KVM_DISK4" ] && [ "$KVM_DRIVE4_IF" = 'virtio' ]; then
-		KVM_DRIVES="${KVM_DRIVES} -drive if=virtio,id=disk4,file=\"$KVM_DISK4\"$KVM_DRIVE4_OPT"
-	elif [ -n "$KVM_DISK4" ]; then
-		KVM_DRIVES="${KVM_DRIVES} -drive if=none,id=disk4,file=\"$KVM_DISK4\"$KVM_DRIVE4_OPT \
-			-device ${KVM_DRIVE4_IF},drive=disk4"
-	fi
+	local LIST_KVM_DISKS=""
+
+	for I in $(awk '{ if ($1 !~ /^KVM_DISK[0-9]+=/) { next; }; \
+		printf("%02i\n", substr($1, 9, (index($1, "=") - 9))); }' \
+		"${VM_DESCRIPTOR}" | sort); do 
+		I=$(printf -- "%s" "$I" | awk '{ printf("%01i", $1); }')
+		KVM_DRIVES="${KVM_DRIVES}$(parse_disks "${VM_DESCRIPTOR}" $I)"
+		KVM_DISK_TMP=$(get_kvm_disk "${VM_DESCRIPTOR}" $I)
+		if [ -z "$LIST_KVM_DISKS" ]; then
+			LIST_KVM_DISKS="$KVM_DISK_TMP"
+		else
+			LIST_KVM_DISKS="${LIST_KVM_DISKS} ${KVM_DISK_TMP}"
+		fi
+	done
 
 	if [ -n "$KVM_CDROM" ]; then
 		KVM_DRIVES="${KVM_DRIVES} -cdrom \"$KVM_CDROM\""
@@ -625,7 +668,7 @@ kvm_start_vm ()
 	fi
 
 	# If drive is a lv in the main vg, activate the lv
-	prepare_disks "$KVM_DISK1" "$KVM_DISK2" "$KVM_DISK3" "$KVM_DISK4"
+	prepare_disks "$LIST_KVM_DISKS"
 
 	# Network scripts
 	if [ -z "$KVM_BRIDGE" ]; then
@@ -717,7 +760,7 @@ netdev=guest0,mac=$KVM_MACADDRESS"
 	rm -rf "$SERIAL_FILE"
 
 	# If drive is a lv in the main vg, deactivate the lv
-	unprepare_disks "$KVM_DISK1" "$KVM_DISK2" "$KVM_DISK3" "$KVM_DISK4"
+	unprepare_disks "$LIST_KVM_DISKS"
 
 	# Exit
 	return 0
@@ -1195,52 +1238,43 @@ kvm_balloon_vm ()
 
 kvm_remove_vm()
 {
-
+	LIST_KVM_DRIVE_NR=""
 	if test_exist "$PID_FILE"; then
 		fail_exit \
 			"Error: $VM_NAME seems to be running. Please stop it before trying to remove it."
 	fi
 
-	local DRIVES_LIST=( )
-	KVM_DISK1=${KVM_DISK1:-''}
-	KVM_DISK2=${KVM_DISK2:-''}
-	KVM_DISK3=${KVM_DISK3:-''}
-	KVM_DISK4=${KVM_DISK4:-''}
-	if [ -n "$KVM_DISK1" ]; then
-		DRIVES_LIST+=("$KVM_DISK1")
-	fi
-	if [ -n "$KVM_DISK2" ]; then
-		DRIVES_LIST+=("$KVM_DISK2")
-	fi
-	if [ -n "$KVM_DISK3" ]; then
-		DRIVES_LIST+=("$KVM_DISK3")
-	fi
-	if [ -n "$KVM_DISK4" ]; then
-		DRIVES_LIST+=("$KVM_DISK4")
-	fi
-	if [ ${#DRIVES_LIST[*]} -gt 0 ]; then
-		LAST_ELEMENT=$((${#DRIVES_LIST[*]}-1))
-		for i in $(seq $LAST_ELEMENT -1 0); do
-			if lvdisplay "${DRIVES_LIST[$i]}" > /dev/null 2>&1; then
-				if lvremove "${DRIVES_LIST[$i]}"; then
-					unset DRIVES_LIST[$i]
-				fi
-			fi
-		done
-	fi
+	for I in $(awk '{ if ($1 !~ /^KVM_DISK[0-9]+=/) { next; }; \
+		printf("%02i\n", substr($1, 9, (index($1, "=") - 9))); }' \
+		"${VM_DESCRIPTOR}" | sort); do 
+		I=$(printf -- "%s" "$I" | awk '{ printf("%01i", $1); }')
+		KVM_DRIVE=$(get_kvm_disk "$VM_DESCRIPTOR" $I)
+		if [ -z "$KVM_DRIVE" ]; then
+			continue
+		fi
+		if lvdisplay "$KVM_DRIVE" > /dev/null 2>&1 \
+			&& lvremove "$KVM_DRIVE" > /dev/null 2>&1; then
+			continue
+		fi
+		if [ -z "$LIST_KVM_DRIVE_NR" ]; then
+			LIST_KVM_DRIVE_NR="$KVM_DRIVE"
+		else
+			LIST_KVM_DRIVE_NR="${LIST_KVM_DRIVE_NR} ${KVM_DRIVE}"
+		fi
+	done
 
-	if [ ${#DRIVES_LIST[*]} -gt 0 ]; then
+	if [ -n "$LIST_KVM_DRIVE_NR" ]; then
 		printf "The VM %s used the following disks (NOT removed by %s):\n" \
 			$VM_NAME $SCRIPT_NAME
-		for DRIVE in ${DRIVES_LIST[*]}; do
-			printf "@ %s\n" "${DRIVE}"
+		for DRIVE in $LIST_KVM_DRIVE_NR; do
+			printf "@ %s\n" "$DRIVE"
 		done
 	fi
 	rm -f "$VM_DESCRIPTOR"
 	if test_exist "$VM_DESCRIPTOR"; then
 		fail_exit "Failed to remove descriptor $VM_DSCRIPTOR."
 	fi
-} # kvm_remove ()
+}
 
 kvm_edit_conf()
 {
@@ -1386,7 +1420,7 @@ case "$ARG1" in
 		if [ $# -ne 2 ]; then
 			print_help
 		fi
-		kvm_remove "$2"
+		kvm_remove_vm "$2"
 		;;
 	'migrate')
 		if [ $# -ne 3 ]; then
