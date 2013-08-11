@@ -69,7 +69,10 @@ parse_disks()
 		fi
 	done
 
-	if [ -z "$kvm_disk" ] || [ -z "$kvm_drvif" ]; then
+	if [ -z "$kvm_disk" ]; then
+		return 0
+	fi
+	if [ -z "$kvm_drvif" ]; then
 		return 1
 	fi
 	if [ "$kvm_drvif" = 'virtio' ]; then
