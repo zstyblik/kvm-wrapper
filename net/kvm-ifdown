@@ -1,10 +1,49 @@
 #!/bin/sh
-#
-# Script called by kvm on tap interface deletion
-#
+# Script called by kvm after tap interface is created
+set -e
+set -u
+TAP=${1:-''}
+if [ -z "$TAP" ]; then
+	printf "No TAP interface given.\n" 1>&2
+	exit 1
+fi
+PREFIX=""
+if [ "$(dirname -- "$0")" = "." ]; then
+	PREFIX="."
+fi
 
+KVM_BR_NUM=$(basename -- "$0" "-ifdown" |\
+	awk '{ arr_len=split($1, arr, "-"); print arr[arr_len]; }')
+if [ -z "$KVM_BR_NUM" ]; then
+	printf "Failed to parse out 'KVM_BR_NUM'.\n" 1>&2
+	exit 1
+fi
+
+VM_NAME=$(basename -- "$0" "-${KVM_BR_NUM}-ifdown")
+if [ -z "$VM_NAME" ]; then
+	printf "Failed to parse out VM_NAME.\n" 1>&2
+	exit 1
+fi
+
+VM_DESCRIPTOR="$(dirname -- "$0" | sed 's@net$@@')${PREFIX}/vm/${VM_NAME}-vm"
+if [ ! -e "$VM_DESCRIPTOR" ]; then
+	printf "VM config '%s' doesn't exist.\n" "$VM_DESCRIPTOR" 1>&2
+	exit 1
+fi
+
+NET_TYPE=$(grep -E -e  "^KVM_NETWORK${KVM_BR_NUM}_TYPE=" "$VM_DESCRIPTOR" | \
+	awk -F'"' '{ print $2 }')
+KVM_BRIDGE=$(grep -E -e "^KVM_BRIDGE${KVM_BR_NUM}=" "${VM_DESCRIPTOR}" | \
+	awk -F'"' '{ print $2 }')
 printf -- "%s:\n" "${0}"
-printf "Removing %s from bridge %s\n" "${1}" "${KVM_BRIDGE}"
-ip link set "${1}" down
-brctl delif "${KVM_BRIDGE}" "${1}"
-
+ip link set "$TAP" down
+if [ "$NET_TYPE" = "ovs" ]; then
+	printf "Removing %s from bridge %s\n" "$TAP" "$KVM_BRIDGE"
+	ovs-vsctl del-port "$KVM_BRIDGE" "$TAP"
+else
+	if [ -z "$KVM_BRIDGE" ]; then
+		KVM_BRIDGE="kvmnat"
+	fi
+	printf "Removing %s from bridge %s\n" "$TAP" "$KVM_BRIDGE"
+	brctl delif "$KVM_BRIDGE" "$TAP"
+fi

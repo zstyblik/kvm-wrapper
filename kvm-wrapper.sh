@@ -81,6 +81,112 @@ parse_disks()
 	fi
 }
 
+parse_network()
+{
+	local config=${1:-''}
+	local i=${2:-''}
+	# KVM_NETWORKx_MACADDR =~ MAC address :)
+	# KVM_NETWORKx_MODEL =~ eg. virtio-net-pci, e1000
+	# KVM_NETWORKx_TYPE =~ actually br type, eg. ovs
+	# KVM_NETWORKx_OPT =~ opts to dev
+	# KVM_BRIDGEx =~ eg. br0
+	# KVM_BRIDGEx_OPT =~ options, eg. 'trunk=0,100'
+	# KVM_NET_SCRIPT =~ internal thing, path to ifup/down
+	local glue_mac="KVM_NETWORK${i}_MACADDR"
+	local glue_net_model="KVM_NETWORK${i}_MODEL"
+	local glue_net_type="KVM_NETWORK${i}_TYPE"
+	local glue_net_opt="KVM_NETWORK${i}_OPT"
+	local glue_br="KVM_BRIDGE${i}"
+	local glue_bropt="KVM_BRIDGE${i}_OPT"
+	#
+	local net_mac=""
+	local net_model=""
+	local net_type=""
+	local net_opt=""
+	local br=""
+	local br_opt=""
+	local kvm_net_script="${ROOTDIR}/net/${VM_NAME}-${i}"
+	for LINE in $(grep -E \
+		-e "^${glue_mac}=" \
+		-e "^${glue_net_model}=" \
+		-e "^${glue_net_type}=" \
+		-e "^${glue_net_opt}=" \
+		-e "^${glue_br}=" \
+		-e "^${glue_bropt}" \
+		"${config}"); do
+		if fnmatch "${glue_mac}=*" "${LINE}"; then
+			net_mac=$(printf -- "%s" "${LINE}" | \
+				awk -F'"' '{ print $2 }')
+		elif fnmatch "${glue_net_model}=*" "${LINE}"; then
+			net_model=$(printf -- "%s" "${LINE}" | \
+				awk -F'"' '{ print $2 }')
+		elif fnmatch "${glue_net_type}=*" "${LINE}"; then
+			net_type=$(printf -- "%s" "${LINE}" | \
+				awk -F'"' '{ print $2 }')
+		elif fnmatch "${glue_net_opt}=*" "${LINE}"; then
+			net_opt=$(printf -- "%s" "${LINE}" | \
+				awk -F'"' '{ print $2 }')
+		elif fnmatch "${glue_br}=*" "${LINE}"; then
+			br=$(printf -- "%s" "${LINE}" | \
+				awk -F'"' '{ print $2 }')
+		elif fnmatch "${glue_bropt}=*" "${LINE}"; then
+			br_opt=$(printf -- "%s" "${LINE}" | \
+				awk -F'"' '{ print $2 }')
+		else
+			# Don't print-out garbage
+			# printf -- "U: '%s'\n" "${LINE}"
+			true
+		fi
+	done
+
+	if [ -z "$net_mac" ]; then
+		return 1
+	fi
+	if [ -z "$net_model" ]; then
+		net_model="virtio-net-pci"
+	fi
+	if [ -z "$net_type" ]; then
+		net_type="vhost_net"
+	fi
+	if [ "$net_model" = "vhost_net" ]; then
+		net_type=$net_model
+	fi
+
+	if [ "$net_type" = "vhost_net" ]; then
+		printf -- " -netdev type=tap,id=guest%i,script=%s-ifup,\
+downscript=%s-ifdown,vhost=on -device virtio-net-pci,netdev=guest%i,mac=%s" \
+"$i" "$kvm_net_script" "$kvm_net_script" "$i" "$net_mac"
+	elif [ "$net_type" = "vde" ]; then
+		if [ -z "$br" ]; then
+			fail_exit "KVM_BRIDGE${i} not set."
+		fi
+		if [ ! -d "$br" ]; then
+			fail_exit "KVM_BRIDGE '$br' doesn't seem to be a socket."
+		fi
+		printf -- " -netdev vde,id=hostnet0,sock=%s%s \
+-device %s,netdev=hostnet0,id=net%i,mac=%s,multifunction=on%s" \
+"$br" "$br_opt" "$net_model" "$i" "$net_mac" "$net_opt"
+	elif [ "$net_type" = "ovs" ]; then
+		if [ -z "$br" ]; then
+			fail_exit "KVM_BRIDGE${i} not set."
+		fi
+		printf -- " -netdev type=tap,id=guest%i,script=%s-ifup,\
+downscript=%s-ifdown -device %s,netdev=guest%i,mac=%s" \
+"$i" "$kvm_net_script"  "$kvm_net_script" "$net_model" "$i" "$net_mac"
+	else
+		if [ -z "$br" ]; then
+			br="kvmnat"
+		fi
+		printf -- " -netdev type=tap,id=guest%i,script=%s-ifup,\
+downscript=%s-ifdown -device %s,netdev=guest%i,mac=%s" \
+"$i" "$kvm_net_script" "$kvm_net_script" "$net_model" "$i" "$net_mac"
+	fi
+	rm -f "${kvm_net_script}-ifup" 2>/dev/null || true
+	rm -f "${kvm_net_script}-ifdown" 2>/dev/null || true
+	ln -s "${ROOTDIR}/net/kvm-ifup" "${kvm_net_script}-ifup"
+	ln -s "${ROOTDIR}/net/kvm-ifdown" "${kvm_net_script}-ifdown"
+}
+
 canonpath ()
 {
 	ARG1=${1:-''}
@@ -624,14 +730,12 @@ kvm_start_vm ()
 	KVM_KERNEL=${KVM_KERNEL:-''}
 	KVM_INITRD=${KVM_INITRD:-''}
 	KVM_APPEND=${KVM_APPEND:-''}
-	KVM_BRIDGE=${KVM_BRIDGE:-''}
-	KVM_NETWORK_MODEL=${KVM_NETWORK_MODEL:-'virtio-net-pci'}
-	KVM_NETWORK_TYPE=${KVM_NETWORK_TYPE:-''}
 	FORCE=${FORCE:-''}
 	SERIAL_USER=${SERIAL_USER:-''}
 	SERIAL_GROUP=${SERIAL_GROUP:-''}
 	# Build KVM Drives (hdd, cdrom) parameters
 	local KVM_DRIVES=""
+	local KVM_NET=""
 	local LIST_KVM_DISKS=""
 
 	for I in $(awk '{ if ($1 !~ /^KVM_DISK[0-9]+=/) { next; }; \
@@ -670,42 +774,12 @@ kvm_start_vm ()
 	# If drive is a lv in the main vg, activate the lv
 	prepare_disks "$LIST_KVM_DISKS"
 
-	# Network scripts
-	if [ -z "$KVM_BRIDGE" ]; then
-		KVM_BRIDGE="kvmnat"
-	fi
-	export KVM_BRIDGE
-	KVM_NET_SCRIPT="$ROOTDIR/net/kvm"
-	KVM_NETWORK_OPT=${KVM_NETWORK_OPT:-''}
-	KVM_BRIDGE_OPT=${KVM_BRIDGE_OPT:-''}
-	export KVM_BRIDGE_OPT
-
-	# Backwards compatibility
-	if [ "${KVM_NETWORK_MODEL}" = "vhost_net" ]; then
-		KVM_NETWORK_TYPE=$KVM_NETWORK_MODEL
-	fi
-
-	if [ "$KVM_NETWORK_TYPE" = "vhost_net" ]; then
-		KVM_NET="-netdev type=tap,id=guest0,script=$KVM_NET_SCRIPT-ifup,\
-downscript=$KVM_NET_SCRIPT-ifdown,vhost=on -device virtio-net-pci,\
-netdev=guest0,mac=$KVM_MACADDRESS"
-	elif [ "$KVM_NETWORK_TYPE" = "vde" ]; then
-		if [ ! -d "${KVM_BRIDGE}" ]; then
-			fail_exit "KVM_BRIDGE '${KVM_BRIDGE}' doesn't seem to be a socket."
-		fi
-		KVM_NET="-netdev vde,id=hostnet0,sock=${KVM_BRIDGE}${KVM_BRIDGE_OPT} \
-			-device $KVM_NETWORK_MODEL,netdev=hostnet0,id=net0,\
-mac=${KVM_MACADDRESS},multifunction=on${KVM_NETWORK_OPT}"
-	elif [ "${KVM_NETWORK_TYPE}" = "ovs" ]; then
-		KVM_NET_SCRIPT="${ROOTDIR}/net/kvm-ovs"
-		KVM_NET="-netdev type=tap,id=guest0,script=$KVM_NET_SCRIPT-ifup,\
-downscript=$KVM_NET_SCRIPT-ifdown -device $KVM_NETWORK_MODEL,\
-netdev=guest0,mac=$KVM_MACADDRESS"
-	else
-		KVM_NET="-netdev type=tap,id=guest0,script=$KVM_NET_SCRIPT-ifup,\
-downscript=$KVM_NET_SCRIPT-ifdown -device $KVM_NETWORK_MODEL,\
-netdev=guest0,mac=$KVM_MACADDRESS"
-	fi
+	for I in $(awk '{ if ($1 !~ /^KVM_NETWORK[0-9]+_MACADDR=/) { next; }; \
+		printf("%02i\n", substr($1, 12, (index($1, "=") - 12))); }' \
+		"${VM_DESCRIPTOR}" | sort); do 
+		I=$(printf -- "%s" "$I" | awk '{ printf("%01i", $1); }')
+		KVM_NET="${KVM_NET}$(parse_network "${VM_DESCRIPTOR}" $I)"
+	done
 
 	# Monitor/serial devices
 	KVM_MONITORDEV="-monitor unix:$MONITOR_FILE,server,nowait"
@@ -758,6 +832,8 @@ netdev=guest0,mac=$KVM_MACADDRESS"
 	rm -rf "$PID_FILE"
 	rm -rf "$MONITOR_FILE"
 	rm -rf "$SERIAL_FILE"
+	rm -rf "${ROOTDIR}/net/${VM_NAME}-"*"-ifup"
+	rm -rf "${ROOTDIR}/net/${VM_NAME}-"*"-ifdown"
 
 	# If drive is a lv in the main vg, deactivate the lv
 	unprepare_disks "$LIST_KVM_DISKS"
