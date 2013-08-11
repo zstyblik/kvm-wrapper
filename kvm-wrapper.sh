@@ -404,7 +404,8 @@ random_mac ()
 	local rand2=$(echo "$(hexdump -n 2 -e '/2 "%u"' /dev/urandom) % 256" | bc)
 	local MACADDRESS=$(printf "%s:%02x:%02x" "$BASE_MAC" "${rand1}" "${rand2}")
 	# check if it's not already used..
-	grep -R -q "KVM_MACADDRESS=\"$MACADDRESS\"" ${VM_DIR}/*-vm 2>/dev/null &&\
+	grep -R -q "KVM_NETWORK[0-9]+_MACADDR=\"$MACADDRESS\"" \
+		${VM_DIR}/*-vm 2>/dev/null &&\
 		random_mac || printf "%s" $MACADDRESS
 } # random_mac ()
 
@@ -1055,7 +1056,7 @@ kvm_create_descriptor ()
 	fi
 
 	sed -i\
-		's/#KVM_MACADDRESS="`random_mac`/KVM_MACADDRESS="'$(random_mac)'/g'\
+		's/#KVM_NETWORK1_MACADDR="`random_mac`/KVM_NETWORK1_MACADDR="'$(random_mac)'/g'\
 		"$VM_DESCRIPTOR"
 	sed -i\
 		's/#KVM_CLUSTER_NODE="`hostname -s`/KVM_CLUSTER_NODE="'$(hostname -s)'/g'\
