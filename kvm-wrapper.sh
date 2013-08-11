@@ -910,10 +910,11 @@ kvm_run_disk ()
 	prepare_disks "$KVM_DISK1"
 	test_file_rw "$KVM_DISK1" || \
 		fail_exit "Couldn't read/write image file:" "$KVM_DISK1"
-
+	
+	local KVM_NETWORK_MACADDR=$(random_mac)
 	# Build kvm exec string
-	local EXEC_STRING="$KVM_BIN -net nic,model=$KVM_NETWORK_MODEL,\
-macaddr=$KVM_MACADDRESS -net tap -hda $KVM_DISK1 -boot c $KVM_KEYMAP \
+	local EXEC_STRING="$KVM_BIN -net nic,model=rtl8139,\
+macaddr=${KVM_NETWORK_MACADDR} -net tap -hda $KVM_DISK1 -boot c $KVM_KEYMAP \
 $KVM_OUTPUT $KVM_ADDITIONNAL_PARAMS"
 	eval "$EXEC_STRING"
 
