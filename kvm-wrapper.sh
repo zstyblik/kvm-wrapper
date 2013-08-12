@@ -1303,9 +1303,13 @@ kvm_build_vm()
 				shift; shift
 				;;
 			"-e"|"--edit"|"--edit-conf")
-				EDIT_CONF="yes"
+				local EDIT_CONF="yes"
 				shift
 				test_editor
+				;;
+			"--no-bootstrap")
+				local DISABLE_BOOTSTRAP="yes"
+				shift
 				;;
 		esac
 	done
@@ -1342,12 +1346,13 @@ kvm_build_vm()
 	kvm_init_env "$VM_NAME"
 
 	lvm_create_disk "$VM_NAME"
-	kvm_bootstrap_vm "$VM_NAME"
-
-	printf "%s\n" "${VM_NAME}" >> "${STARTUP_LIST}"
-
-	printf "Will now start VM %s\n" "${VM_NAME}"
-	kvm_start_screen "$VM_NAME"
+	if [ -z "$DISABLE_BOOTSTRAP" ]; then
+		kvm_bootstrap_vm "$VM_NAME"
+		printf "Will now start VM %s\n" "${VM_NAME}"
+		kvm_start_screen "$VM_NAME"
+	else
+		printf "VM %s created.\n" "$VM_NAME"
+	fi
 } # kvm_build_vm ()
 
 kvm_balloon_vm ()
@@ -1440,6 +1445,7 @@ Flags are:
    -m size, --mem size:    Specify how much RAM you want the system to have
    -s size, --size size:   Specify how big the disk should be in MB
    -e, --edit:             If you want to edit the descriptor after autoconfig
+   --no-bootstrap:         Do not run bootstrap
    --swap size:            Size of the swap in MB
    --flavor name, -f name:  Flavor of the debian release(lenny, squeeze..)
 
