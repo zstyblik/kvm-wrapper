@@ -1212,8 +1212,7 @@ kvm_migrate_vm()
 	PORT=$(($(hexdump -n 2 -e '/2 "%u"' /dev/urandom) % 1000 + 4000))
 
 	# Launch new instance (on pre-configured node)
-	"$SCRIPT_PATH" receive-migrate "$VM_NAME" $PORT
-	sleep 1
+	"$SCRIPT_PATH" receive-migrate "$VM_NAME" "$PORT"
 
 	monitor_send_cmd "migrate_set_speed 1024m"
 #	monitor_send_cmd "migrate \"exec: ssh `get_cluster_host $REMOTE_NODE` socat - unix:$RUN_DIR/migrate-$REMOTE_NODE.sock\""
@@ -1222,6 +1221,20 @@ kvm_migrate_vm()
 }
 
 kvm_receive_migrate_vm()
+{
+	local PORT="$2"
+
+	$SCREEN_START_DETACHED "$SCREEN_SESSION_NAME" $SCREEN_EXTRA_OPTS \
+		"$SCRIPT_PATH" receive-migrate-here "$VM_NAME" "$PORT"
+
+	# Wait for the receiving qemu is ready.
+	#while ! test_exist $RUN_DIR/migrate-$VM_NAME.sock; do
+	while ! netstat -nplt | grep -q ":$PORT "; do
+		sleep 1;
+	done
+}
+
+function kvm_receive_migrate_here_vm()
 {
 	local PORT=${2:-""}
 
@@ -1585,15 +1598,13 @@ case "$ARG1" in
 		if [ $# -ne 3 ]; then
 			print_help
 		fi
-		kvm_receive_migrate_vm "$2" "$3"
+		kvm_receive_migrate_here_vm "$2" "$3"
 		;;
 	'receive-migrate')
 		if [ $# -ne 3 ]; then
 			print_help
 		fi
-		$SCREEN_START_DETACHED "$SCREEN_SESSION_NAME" $SCREEN_EXTRA_OPTS \
-			"$SCRIPT_PATH" receive-migrate-here "$VM_NAME" "$3"
-		sleep 1
+		kvm_receive_migrate_vm "$VM_NAME" "$3"
 		;;
 	'save-state')
 		if [ $# -ne 2 ]; then
