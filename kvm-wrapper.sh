@@ -203,11 +203,23 @@ canonpath ()
 # Exit on fail and print a nice message
 fail_exit ()
 {
-	printf "\n\n\n"
+	printf "\n"
 	while [ $# -gt 0 ]; do
 		printf "%s\n" "${1}"
 		shift
 	done
+	if [ -n "$KVM_SCREEN" ]; then
+		local USE_PID_FILE=""
+		if ! test_exist "$PID_FILE" ; then
+			USE_PID_FILE="true"
+			printf "error\n" > "$PID_FILE"
+		fi
+		printf "Press ^D or enter to exit"
+		read UINPUT
+		if [ -n "$USE_PID_FILE" ]; then
+			rm -f "$PID_FILE"
+		fi
+	fi
 	printf "Exiting.\n"
 	exit 1
 } # fail_exit ()
@@ -716,7 +728,13 @@ kvm_status_vm ()
 	test_exist "$PID_FILE" ||\
 		fail_exit "Error: $VM_NAME doesn't seem to be running."
 
-	kvm_status_from_pid $(cat "$PID_FILE")
+	local VM_PID=$(cat "$PID_FILE" 2>/dev/null)
+	if [ "$VM_PID" = "error" ]; then
+		printf "VM %s is in error state, attach it for more info.\n" \
+			"$VM_NAME"
+	else
+		kvm_status_from_pid "$VM_PID"
+	fi
 } # kvm_status_vm ()
 
 kvm_status ()
@@ -733,8 +751,19 @@ kvm_status ()
 
 		for KVM_CLUSTER_NODE in $(ls -1 $PID_DIR/*-vm.pid| cut -d':' -f1|\
 			sed -e 's:.*/::'| sort | uniq); do
-			printf "servers on %s:\n" "${KVM_CLUSTER_NODE}"
-			kvm_status_from_pid $(cat $PID_DIR/$KVM_CLUSTER_NODE\:*-vm.pid)
+			printf "VMs on %s:\n" "$KVM_CLUSTER_NODE"
+			kvm_status_from_pid $(cat \
+				"$PID_DIR/$KVM_CLUSTER_NODE:"*-vm.pid 2>/dev/null | \
+				grep -v 'error')
+
+			printf "\n"
+			for TMP_VM in $(grep -l 'error' \
+				"$PID_DIR/$KVM_CLUSTER_NODE:"*-vm.pid 2>/dev/null | \
+				sed -e 's!.*:\(.*\)-vm.pid!\1!'); do
+				printf "VM %s is in error state, attach it for more info\n" \
+					"$TMP_VM"
+			done
+
 		done
 	fi
 } # kvm_status ()
@@ -878,7 +907,8 @@ kvm_start_vm ()
 
 	# Now run kvm
 	printf "%s\n\n" $EXEC_STRING
-	eval $EXEC_STRING
+	local KVM_RETVAL=0
+	eval "$EXEC_STRING" || KVM_RETVAL=1
 
 	# Cleanup files
 	rm -rf "$PID_FILE"
@@ -889,6 +919,10 @@ kvm_start_vm ()
 
 	# If drive is a lv in the main vg, deactivate the lv
 	unprepare_disks "$LIST_KVM_DISKS"
+
+	if [ $KVM_RETVAL != 0 ]; then
+		fail_exit "KVM execution exited with RC ${KVM_RETVAL}"
+	fi
 
 	# Exit
 	return 0
@@ -974,13 +1008,13 @@ $KVM_OUTPUT $KVM_ADDITIONNAL_PARAMS"
 kvm_start_screen ()
 {
 	check_create_dir "$RUN_DIR"
-	eval $SCREEN_START_ATTACHED "$SCREEN_SESSION_NAME" \
+	eval KVM_SCREEN="yes" $SCREEN_START_ATTACHED "$SCREEN_SESSION_NAME" \
 		$SCREEN_EXTRA_OPTS "$SCRIPT_PATH" start-here "$VM_NAME"
 } # kvm_start_screen ()
 
 kvm_start_screen_detached ()
 {
-	eval $SCREEN_START_DETACHED "$SCREEN_SESSION_NAME" \
+	eval KVM_SCREEN="yes" $SCREEN_START_DETACHED "$SCREEN_SESSION_NAME" \
 		$SCREEN_EXTRA_OPTS "$SCRIPT_PATH" start-here "$VM_NAME"
 } # kvm_start_screen_detached ()
 
@@ -1041,7 +1075,14 @@ kvm_list ()
 		kvm_init_env $(basename "${file%"-vm"}")
 		if [ -z "$ARG1" ] || [ "$ARG1" = "$KVM_CLUSTER_NODE" ]; then
 			local VM_STATUS="Halted"
-			test_exist "$PID_FILE" && VM_STATUS="Running"
+			local VM_PID=$(cat "$PID_FILE" 2>/dev/null)
+			if [ -z "$VM_PID" ]; then
+				VM_STATUS="Halted"
+			elif [ "$VM_PID" = "error" ]; then
+				VM_STATUS="Error"
+			else
+				VM_STATUS="Running"
+			fi
 			printf "\t%-20s\t%s\ton %s\n" "$VM_NAME" "$VM_STATUS" \
 				"${KVM_CLUSTER_NODE:-'local'}"
 		fi
@@ -1224,7 +1265,8 @@ kvm_receive_migrate_vm()
 {
 	local PORT="$2"
 
-	$SCREEN_START_DETACHED "$SCREEN_SESSION_NAME" $SCREEN_EXTRA_OPTS \
+	eval KVM_SCREEN="yes" $SCREEN_START_DETACHED "$SCREEN_SESSION_NAME" \
+		$SCREEN_EXTRA_OPTS \
 		"$SCRIPT_PATH" receive-migrate-here "$VM_NAME" "$PORT"
 
 	# Wait for the receiving qemu is ready.
@@ -1617,7 +1659,8 @@ case "$ARG1" in
 			print_help
 		fi
 		check_create_dir "$RUN_DIR"
-		$SCREEN_START_ATTACHED "$SCREEN_SESSION_NAME" $SCREEN_EXTRA_OPTS \
+		eval KVM_SCREEN="yes" $SCREEN_START_ATTACHED \
+			"$SCREEN_SESSION_NAME" $SCREEN_EXTRA_OPTS \
 			"$SCRIPT_PATH" load-state-here "$VM_NAME"
 		;;
 	'load-state-here')
