@@ -597,6 +597,36 @@ lvm_umount_disk ()
 	set +e
 } # lvm_umount_disk ()
 
+# PCI assign helper(pci-stub)
+function pci_stubify ()
+{
+	local PCIDOMAIN=${1:-''}
+	if [ "$(printf -- "%s" "$PCIDOMAIN" | tr -dc ":" | wc -c)" = "1" ]; then
+		PCIDOMAIN="0000:$PCIDOMAIN"
+	fi
+
+	local PCI_STUB_DRIVER="/sys/bus/pci/drivers/pci-stub"
+
+	# In case pci-stub is not loaded
+	test_file_rw "${PCI_STUB_DRIVER}/new_id" || modprobe pci-stub
+	test_file_rw "${PCI_STUB_DRIVER}/new_id" || \
+		fail_exit "pci-stub driver not available"
+
+	# Retrieve vendor/device id
+	local PCIVENDOR="$(cat "/sys/bus/pci/devices/$PCIDOMAIN/vendor" | \
+		sed 's/^0x//')"
+	PCIVENDOR="${PCIVENDOR} $(cat "/sys/bus/pci/devices/$PCIDOMAIN/device" | \
+		sed 's/^0x//')"
+
+	printf "Unbinding pci device (%s [%s]) and binding to pci-stub\n" \
+		"$PCIDOMAIN" "$PCIVENDOR"
+
+	# Add id, unbind, and bind
+	printf -- "%s\n" "$PCIVENDOR" > "$PCI_STUB_DRIVER/new_id"
+	printf -- "%s\n" "$PCIDOMAIN" > "/sys/bus/pci/devices/$PCIDOMAIN/driver/unbind"
+	printf -- "%s\n" "$PCIDOMAIN" > "$PCI_STUB_DRIVER/bind"
+}
+
 # Change perms. Meant to run forked.
 serial_perms_forked ()
 {
@@ -785,6 +815,23 @@ kvm_start_vm ()
 		KVM_NET="${KVM_NET}$(parse_network "${VM_DESCRIPTOR}" $I)"
 	done
 
+	# PCI passthrough assignement
+	local KVM_PCI_ASSIGN=""
+	for PCI_DOMAIN_TMP in $(grep -E -e '^KVM_PCIASSIGN[0-9]+_DOMAIN="' \
+		"$VM_DESCRIPTOR"); do
+		local pci_domain=$(printf -- "%s" "$PCI_DOMAIN_TMP" | \
+			awk -F'"' '{ print $2 }')
+		local i=$(printf -- "%s" "$PCI_DOMAIN_TMP" | \
+			awk '{ print substr($1, 14, (index($1, "=") - 14)); }')
+		local pci_id=$(grep -E -e "^KVM_PCIASSIGN${i}_ID=" \
+			"$VM_DESCRIPTOR");
+		pci_stubify "$pci_domain"
+		if [ -z "$pci_id" ]; then
+			pci_id="pciassign${i}"
+		fi
+		KVM_PCI_ASSIGN="${KVM_PCI_ASSIGN} -device pci-assign,id=${pci_id},host=${pci_domain}"
+	done
+
 	# Monitor/serial devices
 	KVM_MONITORDEV="-monitor unix:$MONITOR_FILE,server,nowait"
 	KVM_SERIALDEV="-serial unix:$SERIAL_FILE,server,nowait"
@@ -794,6 +841,7 @@ kvm_start_vm ()
 		-name $VM_NAME,process="kvm-$VM_NAME" \
 		-m $KVM_MEM \
 		-smp $KVM_CPU_NUM \
+		$KVM_PCI_ASSIGN \
 		$KVM_NET \
 		$KVM_DRIVES \
 		$KVM_BOOTDEVICE \
@@ -1317,6 +1365,23 @@ kvm_balloon_vm ()
 	monitor_send_cmd "balloon ${ARG1}"
 } # kvm_balloon_vm ()
 
+function kvm_pci_assign_vm ()
+{
+	! test_exist "$PID_FILE" && \
+		fail_exit "Error: $VM_NAME doesn't seem to be running."
+	! test_socket_rw "$MONITOR_FILE" && \
+		fail_exit "Error: could not open monitor socket $MONITOR_FILE."
+
+	local domain="${1:-''}"
+	pci_stubify "$domain"
+	local devid=""
+	if [ -n "${2:-''}" ]; then
+		devid=",id=$2"
+	fi
+
+	monitor_send_cmd "device_add pci-assign${devid},host=$domain"
+}
+
 kvm_remove_vm()
 {
 	LIST_KVM_DRIVE_NR=""
@@ -1394,6 +1459,7 @@ Usage: $SCRIPT_NAME {start|screen|stop} virtual-machine
        $SCRIPT_NAME conf
 
        $SCRIPT_NAME balloon virtual-machine target_RAM
+       $SCRIPT_NAME pci-assign virtual-machine pci-domain [devname]
        $SCRIPT_NAME bootstrap virtual-machine
        $SCRIPT_NAME create [flags] virtual-machine - for a flag list
        $SCRIPT_NAME help create - help contents on create subcommand
@@ -1549,6 +1615,12 @@ case "$ARG1" in
 		fi
 		ARG3=${3:-''}
 		kvm_balloon_vm "$ARG3"
+		;;
+	'pci-assign')
+		if [ $# -lt 3 ] || [ $# -gt 4 ]; then
+			print_help
+		fi
+		kvm_pci_assign_vm "${3:-''}" "${4:-''}"
 		;;
 	'restart')
 		if [ $# -ne 2 ]; then
