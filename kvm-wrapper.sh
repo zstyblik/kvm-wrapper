@@ -610,7 +610,7 @@ lvm_umount_disk ()
 } # lvm_umount_disk ()
 
 # PCI assign helper(pci-stub)
-function pci_stubify ()
+pci_stubify ()
 {
 	local PCIDOMAIN=${1:-''}
 	if [ "$(printf -- "%s" "$PCIDOMAIN" | tr -dc ":" | wc -c)" = "1" ]; then
@@ -1276,7 +1276,7 @@ kvm_receive_migrate_vm()
 	done
 }
 
-function kvm_receive_migrate_here_vm()
+kvm_receive_migrate_here_vm()
 {
 	local PORT=${2:-""}
 
@@ -1425,7 +1425,7 @@ kvm_balloon_vm ()
 	monitor_send_cmd "balloon ${ARG1}"
 } # kvm_balloon_vm ()
 
-function kvm_pci_assign_vm ()
+kvm_pci_assign_vm ()
 {
 	! test_exist "$PID_FILE" && \
 		fail_exit "Error: $VM_NAME doesn't seem to be running."
