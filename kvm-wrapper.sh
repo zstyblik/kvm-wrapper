@@ -13,6 +13,7 @@ ROOTDIR="/usr/share/kvm-wrapper"
 CONFFILE="$ROOTDIR/kvm-wrapper.conf"
 HOSTNAME=${HOSTNAME:-$(hostname -f)}
 EDITOR=${EDITOR:-""}
+DELIM=";#DLM#;"
 
 get_kvm_disk()
 {
@@ -1163,15 +1164,14 @@ kvm_bootstrap_vm ()
 	{
 		set +e
 		printf "Cleaning up the mess\n"
-		if [ ${#CLEANUP[*]} -gt 0 ]; then
-			LAST_ELEMENT=$((${#CLEANUP[*]}-1))
-			for i in $(seq $LAST_ELEMENT -1 0); do
-				eval ${CLEANUP[$i]}
-			done
-		fi
+		IFS="
+"
+		for C in $(printf -- "$CLEANUP" | sed "s@${DELIM}@\n@g"); do
+			eval "$C"
+		done
 	}
 
-	local CLEANUP=( )
+	CLEANUP=""
 
 	set -e
 	trap cleanup EXIT
@@ -1201,7 +1201,7 @@ kvm_bootstrap_vm ()
 	. "$BOOTSTRAP_SCRIPT"
 
 	prepare_disks "$KVM_DISK1"
-	CLEANUP+=("unprepare_disks \"$KVM_DISK1\"")
+	CLEANUP="${CLEANUP}${DELIM}unprepare_disks \"$KVM_DISK1\""
 	if ! test_blockdev "$KVM_DISK1"; then
 		require_exec "$KVM_NBD_BIN"
 
@@ -1212,7 +1212,7 @@ kvm_bootstrap_vm ()
 
 		printf "Attempting to connect the disk image to an nbd device.\n"
 		kvm_nbd_connect "$KVM_DISK1"
-		CLEANUP+=("kvm_nbd_disconnect \"$KVM_DISK1\"")
+		CLEANUP="${CLEANUP}${DELIM}kvm_nbd_disconnect \"$KVM_DISK1\""
 		local BOOTSTRAP_DEVICE=$(nbd_img_link "$KVM_DISK1")
 		sleep 1 #needed to give time to the nbd to really connect
 	else
@@ -1308,7 +1308,7 @@ kvm_load_state_vm()
 
 kvm_build_vm()
 {
-	local USER_OPTIONS=( )
+	local USER_OPTS=""
 	EDIT_CONF=""
 	while [ "$#" -gt 1 ]; do
 		case "$1" in
@@ -1317,8 +1317,7 @@ kvm_build_vm()
 				if [ -z "${OPT}" ]; then
 					fail_exit "Argument is expected to '-s'/'--size'."
 				fi
-				USER_OPTIONS+=("ROOT_SIZE")
-				USER_OPTIONS+=("$OPT")
+				USER_OPTS="${USER_OPTS}${DELIM}ROOT_SIZE=${OPT}"
 				shift; shift
 				;;
 			"-m"|"--mem"|"--memory")
@@ -1326,8 +1325,7 @@ kvm_build_vm()
 				if [ -z "${OPT}" ]; then
 					fail_exit "Argument is expected to '-m'/'--mem'/'--memory'."
 				fi
-				USER_OPTIONS+=("KVM_MEM")
-				USER_OPTIONS+=("$OPT")
+				USER_OPTS="${USER_OPTS}${DELIM}KVM_MEM=${OPT}"
 				shift; shift
 				;;
 			"-c"|"--cpu"|"--smp")
@@ -1335,8 +1333,7 @@ kvm_build_vm()
 				if [ -z "${OPT}" ]; then
 					fail_exit "Argument is expected to '-c'/'--cpu'/'--smp'."
 				fi
-				USER_OPTIONS+=("KVM_CPU_NUM")
-				USER_OPTIONS+=("$OPT")
+				USER_OPTS="${USER_OPTS}${DELIM}KVM_CPU_NUM=${OPT}"
 				shift; shift
 				;;
 			"--swap")
@@ -1344,8 +1341,7 @@ kvm_build_vm()
 				if [ -z "${OPT}" ]; then
 					fail_exit "Argument is expected to '--swap'."
 				fi
-				USER_OPTIONS+=("SWAP_SIZE")
-				USER_OPTIONS+=("$OPT")
+				USER_OPTS="${USER_OPTS}${DELIM}SWAP_SIZE=${OPT}"
 				shift; shift
 				;;
 			"-f"|"--flavor")
@@ -1353,8 +1349,7 @@ kvm_build_vm()
 				if [ -z "${OPT}" ]; then
 					fail_exit "Argument is expected to '-f'/'--flavor'."
 				fi
-				USER_OPTIONS+=("BOOTSTRAP_FLAVOR")
-				USER_OPTIONS+=("$OPT")
+				USER_OPTS="${USER_OPTS}${DELIM}BOOTSTRAP_FLAVOR=${OPT}"
 				shift; shift
 				;;
 			"-e"|"--edit"|"--edit-conf")
@@ -1387,12 +1382,20 @@ kvm_build_vm()
 
 	. "$AUTOCONF_SCRIPT"
 
-	if [ ${#USER_OPTIONS[*]} -gt 0 ]; then
-		LAST_ELEMENT=$((${#USER_OPTIONS[*]}-2))
-		for i in $(seq 0 2 $LAST_ELEMENT); do
-			desc_update_setting "${USER_OPTIONS[$i]}" "${USER_OPTIONS[$((i+1))]}"
-		done
-	fi
+	IFS="
+"
+	for ELEMENT in $(printf -- "%s" "$USER_OPTS" | sed "s@${DELIM}@\n@g"); do
+		[ -z "${ELEMENT}" ] && continue
+		KEY=$(printf -- "%s" "$ELEMENT" | awk -F'=' '{ print $1 }')
+		[ -z "$KEY" ] && continue
+		VALUE=$(printf -- "%s" "$ELEMENT" | awk \
+			'{ arr_len=split($0, arr, "="); \
+			for (i=2; i <= arr_len; i++) { \
+				printf "%s", arr[i]; \
+				if ((i+1) <= arr_len) { printf "=" }; \
+			};}')
+		desc_update_setting "$KEY" "$VALUE"
+	done
 
 	if [ -n "$EDIT_CONF" ]; then
 		kvm_edit_descriptor "$VM_NAME"
