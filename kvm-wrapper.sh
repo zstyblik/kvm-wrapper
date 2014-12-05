@@ -209,7 +209,7 @@ fail_exit ()
 		printf "%s\n" "${1}"
 		shift
 	done
-	if [ -n "$KVM_SCREEN" ]; then
+	if [ -n "${KVM_SCREEN:-''}" ]; then
 		local USE_PID_FILE=""
 		if ! test_exist "$PID_FILE" ; then
 			USE_PID_FILE="true"
